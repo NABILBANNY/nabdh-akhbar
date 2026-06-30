@@ -172,8 +172,36 @@ function rgba(hex,a){
 function gc(code){const accent=PC[code]||hc(code);return{accent,bg:rgba(accent,.08),border:rgba(accent,.3)};}
 const CATI={اقتصاد:"📈",تقنية:"💡",سياسة:"🏛️",رياضة:"⚽",صحة:"🏥",ثقافة:"🎭",عام:"📰"};
 
-async function fetchNews(){await new Promise(r=>setTimeout(r,900));return MOCK_NEWS;}
-async function fetchAnalyses(){await new Promise(r=>setTimeout(r,1100));return MOCK_ANALYSES;}
+async function fetchNews(){
+  try {
+    const res = await fetch(
+      "https://your-app.onrender.com/webhook/news",
+      { method:"GET", headers:{ "Accept":"application/json" } }
+    );
+    if(!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    // n8n يرجع array مباشرة أو { data: [...] }
+    return Array.isArray(data) ? data : data.data || MOCK_NEWS;
+  } catch(e) {
+    console.warn("fetchNews failed, using mock:", e);
+    return MOCK_NEWS; // fallback
+  }
+}
+
+async function fetchAnalyses(){
+  try {
+    const res = await fetch(
+      "https://your-app.onrender.com/webhook/analyses",
+      { method:"GET", headers:{ "Accept":"application/json" } }
+    );
+    if(!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    return Array.isArray(data) ? data : data.data || MOCK_ANALYSES;
+  } catch(e) {
+    console.warn("fetchAnalyses failed, using mock:", e);
+    return MOCK_ANALYSES; // fallback
+  }
+}
 
 async function genComment(title,summary){
   try{
