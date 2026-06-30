@@ -172,34 +172,32 @@ function rgba(hex,a){
 function gc(code){const accent=PC[code]||hc(code);return{accent,bg:rgba(accent,.08),border:rgba(accent,.3)};}
 const CATI={اقتصاد:"📈",تقنية:"💡",سياسة:"🏛️",رياضة:"⚽",صحة:"🏥",ثقافة:"🎭",عام:"📰"};
 
-async function fetchNews(){
-  try {
-    const res = await fetch(
-      "https://your-app.onrender.com/webhook/news",
-      { method:"GET", headers:{ "Accept":"application/json" } }
-    );
-    if(!res.ok) throw new Error(res.status);
-    const data = await res.json();
-    // n8n يرجع array مباشرة أو { data: [...] }
-    return Array.isArray(data) ? data : data.data || MOCK_NEWS;
-  } catch(e) {
-    console.warn("fetchNews failed, using mock:", e);
-    return MOCK_NEWS; // fallback
+async function fetchNews(url){
+  if(!url || url.includes("your-n8n.com")) return MOCK_NEWS;
+  try{
+    const res=await fetch(url,{method:"GET",headers:{"Accept":"application/json","Content-Type":"application/json"}});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const data=await res.json();
+    const arr=Array.isArray(data)?data:(data.data||data.items||data.news||data.results||null);
+    if(!arr||!arr.length) throw new Error("empty");
+    return arr;
+  }catch(e){
+    console.warn("fetchNews →",e.message,"· using mock data");
+    return MOCK_NEWS;
   }
 }
-
-async function fetchAnalyses(){
-  try {
-    const res = await fetch(
-      "https://your-app.onrender.com/webhook/analyses",
-      { method:"GET", headers:{ "Accept":"application/json" } }
-    );
-    if(!res.ok) throw new Error(res.status);
-    const data = await res.json();
-    return Array.isArray(data) ? data : data.data || MOCK_ANALYSES;
-  } catch(e) {
-    console.warn("fetchAnalyses failed, using mock:", e);
-    return MOCK_ANALYSES; // fallback
+async function fetchAnalyses(url){
+  if(!url || url.includes("your-n8n.com")) return MOCK_ANALYSES;
+  try{
+    const res=await fetch(url,{method:"GET",headers:{"Accept":"application/json","Content-Type":"application/json"}});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const data=await res.json();
+    const arr=Array.isArray(data)?data:(data.data||data.items||data.analyses||data.results||null);
+    if(!arr||!arr.length) throw new Error("empty");
+    return arr;
+  }catch(e){
+    console.warn("fetchAnalyses →",e.message,"· using mock data");
+    return MOCK_ANALYSES;
   }
 }
 
@@ -623,7 +621,13 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,ri,setRi}){
   const [l2,setL2]=useState(wh2);
   const [saved,setSaved]=useState(false);
   const itvs=[{label:"كل دقيقة",val:60},{label:"كل 5 دقائق",val:300},{label:"كل 15 دقيقة",val:900},{label:"كل ساعة",val:3600}];
-  const save=()=>{setWh1(l1);setWh2(l2);setSaved(true);setTimeout(()=>setSaved(false),2000);};
+  const save=()=>{
+    setWh1(l1);setWh2(l2);
+    localStorage.setItem("wh1",l1);
+    localStorage.setItem("wh2",l2);
+    setSaved(true);
+    setTimeout(()=>setSaved(false),2000);
+  };
   return(
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"14px 20px 12px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
@@ -685,21 +689,21 @@ function App(){
   const [savedIds,setSavedIds]=useState(new Set());
   const [savedNews,setSavedNews]=useState([]);
   const [drawerNews,setDrawerNews]=useState(null);
-  const [wh1,setWh1]=useState("https://your-n8n.com/webhook/news");
-  const [wh2,setWh2]=useState("https://your-n8n.com/webhook/analyses");
+  const [wh1,setWh1]=useState(()=>localStorage.getItem("wh1")||"https://your-app.onrender.com/webhook/news");
+  const [wh2,setWh2]=useState(()=>localStorage.getItem("wh2")||"https://your-app.onrender.com/webhook/analyses");
   const [ri,setRi]=useState(300);
 
   // Detect if running as PWA — full screen no phone shell
   const pwa=isStandalone();
 
-  const doLoadNews=async()=>{setLoadN(true);const d=await fetchNews();setNews(d);setLastN(new Date());setLoadN(false);};
-  const doLoadAn=async()=>{setLoadA(true);const d=await fetchAnalyses();setAnalyses(d);setLastA(new Date());setLoadA(false);};
-  useEffect(()=>{doLoadNews();doLoadAn();},[]);
+  const doLoadNews=async()=>{setLoadN(true);const d=await fetchNews(wh1);setNews(d);setLastN(new Date());setLoadN(false);};
+  const doLoadAn=async()=>{setLoadA(true);const d=await fetchAnalyses(wh2);setAnalyses(d);setLastA(new Date());setLoadA(false);};
+  useEffect(()=>{doLoadNews();doLoadAn();},[wh1,wh2]);
   useEffect(()=>{
     const t1=setInterval(doLoadNews,ri*1000);
     const t2=setInterval(doLoadAn,ri*1000);
     return()=>{clearInterval(t1);clearInterval(t2);};
-  },[ri]);
+  },[ri,wh1,wh2]);
 
   const toggleSave=(item)=>{
     setSavedIds(prev=>{
@@ -869,8 +873,3 @@ window.addEventListener('appinstalled', () => banner.classList.add('hidden'));
 </script>
 </body>
 </html>
-HTMLEOF
-echo "Lines: $(wc -l < /mnt/user-data/outputs/nabdh-akhbar.html)"
-Sortie
-
-Lines: 843
