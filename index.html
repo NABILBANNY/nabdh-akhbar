@@ -41,32 +41,98 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='80' fill='%230D1117'/%3E%3Ccircle cx='256' cy='220' r='80' fill='%232563EB'/%3E%3Ccircle cx='256' cy='220' r='50' fill='%230D1117'/%3E%3Ccircle cx='256' cy='220' r='18' fill='%2322C55E'/%3E%3Crect x='160' y='320' width='192' height='16' rx='8' fill='%232563EB'/%3E%3Crect x='190' y='350' width='132' height='12' rx='6' fill='%23334155'/%3E%3C/svg%3E"/>
 
   <style>
+    /* ── DARK THEME (default) ── */
+    :root {
+      --bg-page:    #060B14;
+      --bg-shell:   #0D1117;
+      --bg-card:    #111827;
+      --bg-card2:   #0F172A;
+      --bg-nav:     #0A1120;
+      --bg-input:   #0D1117;
+      --bg-chip:    #1E293B;
+      --border:     #1E293B;
+      --border2:    #334155;
+      --txt-h:      #F8FAFC;
+      --txt-p:      #F1F5F9;
+      --txt-s:      #CBD5E1;
+      --txt-m:      #94A3B8;
+      --txt-d:      #64748B;
+      --txt-x:      #475569;
+      --shadow:     rgba(0,0,0,.8);
+      --overlay:    rgba(0,0,0,.65);
+      --notch:      #0D1117;
+      --urgent-bg:  rgba(220,38,38,.1);
+      --urgent-brd: rgba(220,38,38,.3);
+      --transition: background .25s, color .25s, border-color .25s, box-shadow .25s;
+    }
+    /* ── LIGHT THEME ── */
+    :root.light {
+      --bg-page:    #F0F4F8;
+      --bg-shell:   #FFFFFF;
+      --bg-card:    #F8FAFC;
+      --bg-card2:   #F1F5F9;
+      --bg-nav:     #FFFFFF;
+      --bg-input:   #F1F5F9;
+      --bg-chip:    #E2E8F0;
+      --border:     #E2E8F0;
+      --border2:    #CBD5E1;
+      --txt-h:      #0F172A;
+      --txt-p:      #1E293B;
+      --txt-s:      #334155;
+      --txt-m:      #475569;
+      --txt-d:      #64748B;
+      --txt-x:      #94A3B8;
+      --shadow:     rgba(0,0,0,.15);
+      --overlay:    rgba(0,0,0,.4);
+      --notch:      #FFFFFF;
+      --urgent-bg:  rgba(220,38,38,.06);
+      --urgent-brd: rgba(220,38,38,.2);
+    }
+
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-    html,body{height:100%;overflow:hidden;background:#060B14;font-family:'Noto Sans Arabic','Segoe UI',system-ui,sans-serif;}
+    html,body{height:100%;overflow:hidden;background:var(--bg-page);font-family:'Noto Sans Arabic','Segoe UI',system-ui,sans-serif;transition:var(--transition);}
     #root{height:100%;display:flex;justify-content:center;align-items:center;}
 
     /* PWA install banner */
     #install-banner{
       position:fixed;bottom:0;left:0;right:0;z-index:9999;
-      background:linear-gradient(135deg,#1E293B,#0F172A);
-      border-top:1px solid #334155;
+      background:var(--bg-card2);
+      border-top:1px solid var(--border2);
       padding:16px 20px max(16px, env(safe-area-inset-bottom));
       display:flex;align-items:center;gap:14px;
       animation:slideUpBanner .4s ease;
-      box-shadow:0 -8px 32px rgba(0,0,0,.6);
+      box-shadow:0 -8px 32px var(--shadow);
     }
     #install-banner.hidden{display:none;}
     @keyframes slideUpBanner{from{transform:translateY(100%)}to{transform:translateY(0)}}
     .install-icon{width:52px;height:52px;background:linear-gradient(135deg,#2563EB,#7C3AED);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
     .install-text{flex:1;}
-    .install-title{color:#F1F5F9;font-size:15px;font-weight:700;margin-bottom:3px;}
-    .install-sub{color:#64748B;font-size:12px;line-height:1.4;}
+    .install-title{color:var(--txt-p);font-size:15px;font-weight:700;margin-bottom:3px;}
+    .install-sub{color:var(--txt-d);font-size:12px;line-height:1.4;}
     .install-btn{background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff;border:none;padding:10px 18px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;}
-    .install-close{background:none;border:none;color:#475569;font-size:20px;cursor:pointer;padding:4px;flex-shrink:0;line-height:1;}
+    .install-close{background:none;border:none;color:var(--txt-x);font-size:20px;cursor:pointer;padding:4px;flex-shrink:0;line-height:1;}
 
     /* Safe area padding for PWA */
     .safe-top{padding-top:env(safe-area-inset-top,10px);}
     .safe-bottom{padding-bottom:env(safe-area-inset-bottom,0px);}
+
+    /* Theme toggle switch */
+    .theme-toggle{position:relative;width:52px;height:28px;flex-shrink:0;}
+    .theme-toggle input{opacity:0;width:0;height:0;position:absolute;}
+    .theme-track{
+      position:absolute;inset:0;border-radius:14px;cursor:pointer;
+      background:#1E293B;transition:background .3s;
+      display:flex;align-items:center;justify-content:space-between;padding:0 6px;font-size:12px;
+    }
+    :root.light .theme-track{background:#CBD5E1;}
+    .theme-thumb{
+      position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;
+      background:linear-gradient(135deg,#2563EB,#7C3AED);
+      transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+      box-shadow:0 2px 6px rgba(0,0,0,.3);
+      display:flex;align-items:center;justify-content:center;font-size:12px;
+    }
+    :root.light .theme-thumb{transform:translateX(-24px);}
   </style>
 </head>
 <body>
@@ -162,7 +228,7 @@ const MOCK_ANALYSES = [
 // ══════════════════════════════════════════════
 //  COLORS
 // ══════════════════════════════════════════════
-const PC = {SA:"#2DD4BF",EG:"#F59E0B",AE:"#818CF8",MA:"#F87171",TN:"#34D399",DZ:"#FB923C",QA:"#E879F9",KW:"#4ADE80",IQ:"#60A5FA",LY:"#A78BFA",INTL:"#94A3B8"};
+const PC = {SA:"#2DD4BF",EG:"#F59E0B",AE:"#818CF8",MA:"#F87171",TN:"#34D399",DZ:"#FB923C",QA:"#E879F9",KW:"#4ADE80",IQ:"#60A5FA",LY:"#A78BFA",INTL:"var(--txt-m)"};
 function hc(c){let h=0;for(let i=0;i<c.length;i++)h=c.charCodeAt(i)+((h<<5)-h);return`hsl(${Math.abs(h)%360},70%,65%)`;}
 function rgba(hex,a){
   if(hex.startsWith("hsl"))return hex.replace("hsl(","hsla(").replace(")",`,${a})`);
@@ -242,12 +308,12 @@ function CountryTab({label,flag,active,onClick,accent,count}){
   return(
     <div style={{position:"relative",flexShrink:0}}>
       <button onClick={onClick} style={{padding:"7px 15px",borderRadius:50,border:"none",cursor:"pointer",transition:"all .2s",
-        background:active?accent:"#1E293B",color:active?"#0D1117":"#94A3B8",
+        background:active?accent:"var(--bg-chip)",color:active?"var(--bg-input)":"var(--txt-m)",
         fontWeight:active?700:500,fontSize:13,display:"flex",alignItems:"center",gap:6,fontFamily:"inherit",
         boxShadow:active?`0 0 14px ${accent}55`:"none"}}>
         <span style={{fontSize:15}}>{flag}</span>{label}
       </button>
-      {count>0&&<div style={{position:"absolute",top:-4,left:-4,background:accent,color:"#0D1117",
+      {count>0&&<div style={{position:"absolute",top:-4,left:-4,background:accent,color:"var(--bg-input)",
         fontSize:9,fontWeight:800,width:16,height:16,borderRadius:"50%",
         display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid #0D1117"}}>{count}</div>}
     </div>
@@ -260,22 +326,22 @@ function CountryTab({label,flag,active,onClick,accent,count}){
 function NewsCard({news,onOpen,onSave,saved}){
   const col=gc(news.countryCode);
   return(
-    <div style={{background:"#111827",border:"1px solid #1E293B",borderRadius:18,padding:"15px 17px",marginBottom:13,position:"relative",overflow:"hidden"}}>
+    <div style={{background:"var(--bg-card)",border:"1px solid #1E293B",borderRadius:18,padding:"15px 17px",marginBottom:13,position:"relative",overflow:"hidden"}}>
       <div style={{position:"absolute",right:0,top:0,bottom:0,width:4,background:col.accent,borderRadius:"0 18px 18px 0"}}/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:9}}>
         <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
           {news.urgent&&<span style={{background:"#DC2626",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:50}}>⚡ عاجل</span>}
           <span style={{background:col.bg,color:col.accent,fontSize:11,fontWeight:600,padding:"2px 9px",borderRadius:50,border:`1px solid ${col.border}`}}>{CATI[news.category]||"📰"} {news.category}</span>
-          <span style={{background:"#1E293B",color:"#64748B",fontSize:11,padding:"2px 8px",borderRadius:50}}>{news.flag} {news.country}</span>
+          <span style={{background:"var(--bg-chip)",color:"var(--txt-d)",fontSize:11,padding:"2px 8px",borderRadius:50}}>{news.flag} {news.country}</span>
         </div>
-        <button onClick={e=>{e.stopPropagation();onSave(news);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:17,padding:"0 4px",color:saved?"#F59E0B":"#334155",flexShrink:0}}>🔖</button>
+        <button onClick={e=>{e.stopPropagation();onSave(news);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:17,padding:"0 4px",color:saved?"#F59E0B":"var(--border2)",flexShrink:0}}>🔖</button>
       </div>
-      <h3 onClick={()=>onOpen(news)} style={{color:"#F1F5F9",fontSize:14.5,fontWeight:700,margin:"0 0 7px",lineHeight:1.55,cursor:"pointer"}}>{news.title}</h3>
-      <p onClick={()=>onOpen(news)} style={{color:"#94A3B8",fontSize:13,lineHeight:1.7,margin:"0 0 11px",cursor:"pointer"}}>{news.summary}</p>
+      <h3 onClick={()=>onOpen(news)} style={{color:"var(--txt-p)",fontSize:14.5,fontWeight:700,margin:"0 0 7px",lineHeight:1.55,cursor:"pointer"}}>{news.title}</h3>
+      <p onClick={()=>onOpen(news)} style={{color:"var(--txt-m)",fontSize:13,lineHeight:1.7,margin:"0 0 11px",cursor:"pointer"}}>{news.summary}</p>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{color:"#64748B",fontSize:12,fontWeight:600}}>📰 {news.source}</span>
+        <span style={{color:"var(--txt-d)",fontSize:12,fontWeight:600}}>📰 {news.source}</span>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{color:"#475569",fontSize:11}}>{news.time}</span>
+          <span style={{color:"var(--txt-x)",fontSize:11}}>{news.time}</span>
           <span onClick={()=>onOpen(news)} style={{background:col.bg,border:`1px solid ${col.border}`,borderRadius:8,padding:"3px 9px",color:col.accent,fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 تحليل</span>
         </div>
       </div>
@@ -297,44 +363,44 @@ function NewsDrawer({news,onClose}){
   if(!news)return null;
   return(
     <>
-      <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(0,0,0,.65)",zIndex:10,backdropFilter:"blur(4px)"}}/>
-      <div style={{position:"absolute",bottom:0,left:0,right:0,zIndex:20,background:"#0F172A",borderRadius:"22px 22px 0 0",border:"1px solid #1E293B",borderBottom:"none",maxHeight:"80%",display:"flex",flexDirection:"column",animation:"slideUp .28s cubic-bezier(.32,1,.23,1)"}}>
-        <div style={{display:"flex",justifyContent:"center",padding:"11px 0 0"}}><div style={{width:38,height:4,background:"#334155",borderRadius:2}}/></div>
+      <div onClick={onClose} style={{position:"absolute",inset:0,background:"var(--overlay)",zIndex:10,backdropFilter:"blur(4px)"}}/>
+      <div style={{position:"absolute",bottom:0,left:0,right:0,zIndex:20,background:"var(--bg-card2)",borderRadius:"22px 22px 0 0",border:"1px solid #1E293B",borderBottom:"none",maxHeight:"80%",display:"flex",flexDirection:"column",animation:"slideUp .28s cubic-bezier(.32,1,.23,1)"}}>
+        <div style={{display:"flex",justifyContent:"center",padding:"11px 0 0"}}><div style={{width:38,height:4,background:"var(--border2)",borderRadius:2}}/></div>
         <div style={{padding:"10px 20px 0"}}>
           <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
             <span style={{fontSize:20}}>{news.flag}</span>
             <span style={{color:col.accent,fontSize:12,fontWeight:700}}>{news.country}</span>
-            <span style={{color:"#334155"}}>·</span>
-            <span style={{color:"#64748B",fontSize:12}}>{news.source} · {news.time}</span>
+            <span style={{color:"var(--border2)"}}>·</span>
+            <span style={{color:"var(--txt-d)",fontSize:12}}>{news.source} · {news.time}</span>
           </div>
-          <h3 style={{color:"#F1F5F9",fontSize:14.5,fontWeight:700,margin:0,lineHeight:1.55}}>{news.title}</h3>
+          <h3 style={{color:"var(--txt-p)",fontSize:14.5,fontWeight:700,margin:0,lineHeight:1.55}}>{news.title}</h3>
         </div>
         <div style={{overflowY:"auto",flex:1,padding:"0 20px 28px"}}>
-          <div style={{marginTop:14,background:"#111827",borderRadius:15,padding:15,border:`1px solid ${col.border}`}}>
+          <div style={{marginTop:14,background:"var(--bg-card)",borderRadius:15,padding:15,border:`1px solid ${col.border}`}}>
             <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:11}}>
               <div style={{width:26,height:26,background:col.bg,border:`1px solid ${col.border}`,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🤖</div>
               <span style={{color:col.accent,fontWeight:700,fontSize:13}}>تحليل Claude AI</span>
               {aiLoading&&<div style={{width:13,height:13,border:`2px solid ${col.accent}33`,borderTop:`2px solid ${col.accent}`,borderRadius:"50%",animation:"spin .8s linear infinite",marginRight:"auto"}}/>}
             </div>
-            {aiLoading?[100,82,66].map((w,i)=><div key={i} style={{height:13,background:"#1E293B",borderRadius:5,width:`${w}%`,marginBottom:8,animation:"pulse 1.4s ease-in-out infinite",animationDelay:`${i*.18}s`}}/>)
-              :<p style={{color:"#CBD5E1",fontSize:13.5,lineHeight:1.85,margin:0}}>{aiText}</p>}
+            {aiLoading?[100,82,66].map((w,i)=><div key={i} style={{height:13,background:"var(--bg-chip)",borderRadius:5,width:`${w}%`,marginBottom:8,animation:"pulse 1.4s ease-in-out infinite",animationDelay:`${i*.18}s`}}/>)
+              :<p style={{color:"var(--txt-s)",fontSize:13.5,lineHeight:1.85,margin:0}}>{aiText}</p>}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8,margin:"14px 0"}}>
-            <div style={{flex:1,height:1,background:"#1E293B"}}/><span style={{color:"#475569",fontSize:12}}>تعليقك</span><div style={{flex:1,height:1,background:"#1E293B"}}/>
+            <div style={{flex:1,height:1,background:"var(--bg-chip)"}}/><span style={{color:"var(--txt-x)",fontSize:12}}>تعليقك</span><div style={{flex:1,height:1,background:"var(--bg-chip)"}}/>
           </div>
           {submitted?(
             <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.3)",borderRadius:14,padding:15,display:"flex",gap:10}}>
               <span style={{fontSize:22}}>✅</span>
-              <div><div style={{color:"#22C55E",fontWeight:700,fontSize:14}}>نُشر تعليقك!</div><div style={{color:"#94A3B8",fontSize:13,marginTop:4,lineHeight:1.6}}>{note}</div></div>
+              <div><div style={{color:"#22C55E",fontWeight:700,fontSize:14}}>نُشر تعليقك!</div><div style={{color:"var(--txt-m)",fontSize:13,marginTop:4,lineHeight:1.6}}>{note}</div></div>
             </div>
           ):(
             <>
               <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="شاركنا رأيك..."
-                style={{width:"100%",minHeight:80,background:"#111827",border:"1px solid #1E293B",borderRadius:13,padding:"11px 13px",color:"#E2E8F0",fontSize:13.5,lineHeight:1.7,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}}/>
+                style={{width:"100%",minHeight:80,background:"var(--bg-card)",border:"1px solid #1E293B",borderRadius:13,padding:"11px 13px",color:"#E2E8F0",fontSize:13.5,lineHeight:1.7,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}}/>
               <button onClick={()=>note.trim()&&setSubmitted(true)} disabled={!note.trim()}
                 style={{marginTop:9,width:"100%",padding:12,borderRadius:13,border:"none",cursor:note.trim()?"pointer":"not-allowed",
-                  background:note.trim()?`linear-gradient(135deg,${col.accent},${col.accent}cc)`:"#1E293B",
-                  color:note.trim()?"#0D1117":"#475569",fontWeight:700,fontSize:15,fontFamily:"inherit"}}>نشر التعليق ✦</button>
+                  background:note.trim()?`linear-gradient(135deg,${col.accent},${col.accent}cc)`:"var(--bg-chip)",
+                  color:note.trim()?"var(--bg-input)":"var(--txt-x)",fontWeight:700,fontSize:15,fontFamily:"inherit"}}>نشر التعليق ✦</button>
             </>
           )}
         </div>
@@ -352,8 +418,8 @@ function ArticleReader({article,onClose}){
   const [submitted,setSubmitted]=useState(false);
   const date=new Date(article.publishedAt).toLocaleDateString("ar-EG",{day:"numeric",month:"long",year:"numeric"});
   return(
-    <div style={{position:"absolute",inset:0,zIndex:40,background:"#0D1117",display:"flex",flexDirection:"column",animation:"slideUp .3s cubic-bezier(.32,1,.23,1)"}}>
-      <div style={{position:"relative",height:200,flexShrink:0,overflow:"hidden",background:"#111827"}}>
+    <div style={{position:"absolute",inset:0,zIndex:40,background:"var(--bg-input)",display:"flex",flexDirection:"column",animation:"slideUp .3s cubic-bezier(.32,1,.23,1)"}}>
+      <div style={{position:"relative",height:200,flexShrink:0,overflow:"hidden",background:"var(--bg-card)"}}>
         <img src={article.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:.75}} onError={e=>{e.target.style.display="none";}}/>
         <div style={{position:"absolute",inset:0,background:`linear-gradient(to top, #0D1117 0%, rgba(13,17,23,.4) 60%, transparent 100%)`}}/>
         <button onClick={onClose} style={{position:"absolute",top:14,right:16,background:"rgba(0,0,0,.6)",backdropFilter:"blur(8px)",border:"1px solid #334155",borderRadius:12,width:38,height:38,cursor:"pointer",color:"#E2E8F0",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
@@ -365,38 +431,38 @@ function ArticleReader({article,onClose}){
         </div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"0 20px 30px"}}>
-        <h1 style={{color:"#F8FAFC",fontSize:18,fontWeight:800,lineHeight:1.5,margin:"16px 0 12px"}}>{article.title}</h1>
+        <h1 style={{color:"var(--txt-h)",fontSize:18,fontWeight:800,lineHeight:1.5,margin:"16px 0 12px"}}>{article.title}</h1>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,paddingBottom:14,borderBottom:"1px solid #1E293B"}}>
           <div style={{width:34,height:34,background:`linear-gradient(135deg,${col.accent}44,${col.accent}11)`,border:`1px solid ${col.border}`,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>✍️</div>
           <div style={{flex:1}}>
             <div style={{color:"#E2E8F0",fontSize:13,fontWeight:700}}>{article.author}</div>
-            <div style={{color:"#475569",fontSize:11,marginTop:1}}>{date} · {article.readTime}</div>
+            <div style={{color:"var(--txt-x)",fontSize:11,marginTop:1}}>{date} · {article.readTime}</div>
           </div>
           <div style={{background:col.bg,border:`1px solid ${col.border}`,borderRadius:10,padding:"4px 10px",display:"flex",alignItems:"center",gap:4}}>
             <span style={{color:col.accent,fontSize:11,fontWeight:700}}>🏛️ تحليل</span>
           </div>
         </div>
         {article.body.split("\n\n").map((p,i)=>p.trim()&&(
-          <p key={i} style={{color:i===0?"#CBD5E1":"#94A3B8",fontSize:i===0?14.5:13.5,lineHeight:1.9,margin:"0 0 16px",fontWeight:i===0?500:400,textAlign:"justify"}}>{p.trim()}</p>
+          <p key={i} style={{color:i===0?"var(--txt-s)":"var(--txt-m)",fontSize:i===0?14.5:13.5,lineHeight:1.9,margin:"0 0 16px",fontWeight:i===0?500:400,textAlign:"justify"}}>{p.trim()}</p>
         ))}
         <div style={{display:"flex",alignItems:"center",gap:8,margin:"18px 0 16px"}}>
-          <div style={{flex:1,height:1,background:"#1E293B"}}/><span style={{color:col.accent,fontSize:13}}>✦</span><div style={{flex:1,height:1,background:"#1E293B"}}/>
+          <div style={{flex:1,height:1,background:"var(--bg-chip)"}}/><span style={{color:col.accent,fontSize:13}}>✦</span><div style={{flex:1,height:1,background:"var(--bg-chip)"}}/>
         </div>
-        <div style={{background:"#111827",borderRadius:16,padding:16,border:"1px solid #1E293B"}}>
-          <div style={{color:"#94A3B8",fontSize:12,fontWeight:700,marginBottom:12}}>💬 أضف تعليقك</div>
+        <div style={{background:"var(--bg-card)",borderRadius:16,padding:16,border:"1px solid #1E293B"}}>
+          <div style={{color:"var(--txt-m)",fontSize:12,fontWeight:700,marginBottom:12}}>💬 أضف تعليقك</div>
           {submitted?(
             <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.3)",borderRadius:12,padding:14,display:"flex",gap:10}}>
               <span style={{fontSize:20}}>✅</span>
-              <div><div style={{color:"#22C55E",fontWeight:700,fontSize:13}}>شكراً على مشاركتك!</div><div style={{color:"#94A3B8",fontSize:12.5,marginTop:4,lineHeight:1.6}}>{comment}</div></div>
+              <div><div style={{color:"#22C55E",fontWeight:700,fontSize:13}}>شكراً على مشاركتك!</div><div style={{color:"var(--txt-m)",fontSize:12.5,marginTop:4,lineHeight:1.6}}>{comment}</div></div>
             </div>
           ):(
             <>
               <textarea value={comment} onChange={e=>setComment(e.target.value)} placeholder="شاركنا رأيك في هذا التحليل..."
-                style={{width:"100%",minHeight:90,background:"#0D1117",border:"1px solid #1E293B",borderRadius:12,padding:"11px 13px",color:"#E2E8F0",fontSize:13.5,lineHeight:1.7,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}}/>
+                style={{width:"100%",minHeight:90,background:"var(--bg-input)",border:"1px solid #1E293B",borderRadius:12,padding:"11px 13px",color:"#E2E8F0",fontSize:13.5,lineHeight:1.7,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}}/>
               <button onClick={()=>comment.trim()&&setSubmitted(true)} disabled={!comment.trim()}
                 style={{marginTop:10,width:"100%",padding:12,borderRadius:12,border:"none",cursor:comment.trim()?"pointer":"not-allowed",
-                  background:comment.trim()?`linear-gradient(135deg,${col.accent},${col.accent}cc)`:"#1E293B",
-                  color:comment.trim()?"#0D1117":"#475569",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>إرسال التعليق ✦</button>
+                  background:comment.trim()?`linear-gradient(135deg,${col.accent},${col.accent}cc)`:"var(--bg-chip)",
+                  color:comment.trim()?"var(--bg-input)":"var(--txt-x)",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>إرسال التعليق ✦</button>
             </>
           )}
         </div>
@@ -412,24 +478,24 @@ function AnalysisCard({article,onClick}){
   const col=gc(article.countryCode);
   const date=new Date(article.publishedAt).toLocaleDateString("ar-EG",{day:"numeric",month:"long"});
   return(
-    <div onClick={()=>onClick(article)} style={{background:"#111827",border:"1px solid #1E293B",borderRadius:20,overflow:"hidden",marginBottom:16,cursor:"pointer"}}>
-      <div style={{position:"relative",height:160,overflow:"hidden",background:"#0D1117"}}>
+    <div onClick={()=>onClick(article)} style={{background:"var(--bg-card)",border:"1px solid #1E293B",borderRadius:20,overflow:"hidden",marginBottom:16,cursor:"pointer"}}>
+      <div style={{position:"relative",height:160,overflow:"hidden",background:"var(--bg-input)"}}>
         <img src={article.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:.85}} onError={e=>{e.target.style.display="none";}}/>
         <div style={{position:"absolute",inset:0,background:`linear-gradient(to top, #111827 0%, transparent 55%)`}}/>
         <div style={{position:"absolute",top:12,right:14,background:"rgba(0,0,0,.6)",backdropFilter:"blur(8px)",borderRadius:10,padding:"4px 10px",display:"flex",alignItems:"center",gap:5,border:`1px solid ${col.border}`}}>
           <span style={{fontSize:14}}>{article.flag}</span><span style={{color:col.accent,fontSize:11,fontWeight:700}}>{article.country}</span>
         </div>
         <div style={{position:"absolute",top:12,left:14,background:"rgba(0,0,0,.6)",backdropFilter:"blur(8px)",borderRadius:10,padding:"4px 10px"}}>
-          <span style={{color:"#94A3B8",fontSize:11}}>⏱ {article.readTime}</span>
+          <span style={{color:"var(--txt-m)",fontSize:11}}>⏱ {article.readTime}</span>
         </div>
       </div>
       <div style={{padding:"14px 16px 16px"}}>
-        <h3 style={{color:"#F1F5F9",fontSize:15,fontWeight:800,margin:"0 0 8px",lineHeight:1.5}}>{article.title}</h3>
-        <p style={{color:"#64748B",fontSize:12.5,lineHeight:1.65,margin:"0 0 12px",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{article.body.substring(0,130)}...</p>
+        <h3 style={{color:"var(--txt-p)",fontSize:15,fontWeight:800,margin:"0 0 8px",lineHeight:1.5}}>{article.title}</h3>
+        <p style={{color:"var(--txt-d)",fontSize:12.5,lineHeight:1.65,margin:"0 0 12px",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{article.body.substring(0,130)}...</p>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{display:"flex",alignItems:"center",gap:7}}>
             <div style={{width:28,height:28,background:`linear-gradient(135deg,${col.accent}33,${col.accent}11)`,border:`1px solid ${col.border}`,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>✍️</div>
-            <div><div style={{color:"#E2E8F0",fontSize:11.5,fontWeight:700}}>{article.author}</div><div style={{color:"#475569",fontSize:10}}>{date}</div></div>
+            <div><div style={{color:"#E2E8F0",fontSize:11.5,fontWeight:700}}>{article.author}</div><div style={{color:"var(--txt-x)",fontSize:10}}>{date}</div></div>
           </div>
           <div style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"flex-end"}}>
             {article.tags.slice(0,2).map(t=><span key={t} style={{background:col.bg,color:col.accent,fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:20,border:`1px solid ${col.border}`}}>#{t}</span>)}
@@ -455,20 +521,20 @@ function HomeScreen({news,loading,onRefresh,lastUpdate,savedIds,onSave,onOpen,ac
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <div style={{width:32,height:32,background:"linear-gradient(135deg,#2563EB,#7C3AED)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📡</div>
           <div>
-            <div style={{color:"#F8FAFC",fontWeight:800,fontSize:17,letterSpacing:-0.5}}>نبض الأخبار</div>
-            <div style={{color:"#64748B",fontSize:10.5}}>Workflow 1 · n8n</div>
+            <div style={{color:"var(--txt-h)",fontWeight:800,fontSize:17,letterSpacing:-0.5}}>نبض الأخبار</div>
+            <div style={{color:"var(--txt-d)",fontSize:10.5}}>Workflow 1 · n8n</div>
           </div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <div style={{background:"#1E293B",borderRadius:12,padding:"4px 10px",display:"flex",alignItems:"center",gap:4}}>
+          <div style={{background:"var(--bg-chip)",borderRadius:12,padding:"4px 10px",display:"flex",alignItems:"center",gap:4}}>
             <div style={{width:7,height:7,background:"#22C55E",borderRadius:"50%",animation:"pulse 2s infinite"}}/>
-            <span style={{color:"#94A3B8",fontSize:11,fontWeight:600}}>{news.length} خبر</span>
+            <span style={{color:"var(--txt-m)",fontSize:11,fontWeight:600}}>{news.length} خبر</span>
           </div>
           <button onClick={onRefresh} disabled={loading} style={{background:"none",border:"none",cursor:"pointer",color:"#2563EB",fontSize:22,padding:4,opacity:loading?0.5:1}}>⟳</button>
         </div>
       </div>
       {urgentCount>0&&(
-        <div style={{margin:"10px 20px 0",background:"rgba(220,38,38,.1)",border:"1px solid rgba(220,38,38,.3)",borderRadius:12,padding:"7px 13px",display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
+        <div style={{margin:"10px 20px 0",background:"var(--urgent-bg)",border:"1px solid rgba(220,38,38,.3)",borderRadius:12,padding:"7px 13px",display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
           <div style={{width:8,height:8,background:"#DC2626",borderRadius:"50%",animation:"pulse 1s infinite"}}/>
           <span style={{color:"#FCA5A5",fontSize:12,fontWeight:700}}>{urgentCount} خبر عاجل</span>
         </div>
@@ -479,15 +545,15 @@ function HomeScreen({news,loading,onRefresh,lastUpdate,savedIds,onSave,onOpen,ac
         );})}
       </div>
       <div style={{padding:"12px 20px 5px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-        <span style={{color:"#F1F5F9",fontWeight:800,fontSize:15}}>{activeCountry==="الكل"?"جميع الأخبار":`أخبار ${activeCountry}`}</span>
-        <span style={{color:"#475569",fontSize:11}}>آخر تحديث {lastUpdate.toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})}</span>
+        <span style={{color:"var(--txt-p)",fontWeight:800,fontSize:15}}>{activeCountry==="الكل"?"جميع الأخبار":`أخبار ${activeCountry}`}</span>
+        <span style={{color:"var(--txt-x)",fontSize:11}}>آخر تحديث {lastUpdate.toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})}</span>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"0 20px 20px"}}>
         {loading?[1,2,3].map(i=>(
-          <div key={i} style={{background:"#111827",borderRadius:18,padding:18,marginBottom:13,animation:"pulse 1.4s ease-in-out infinite",animationDelay:`${i*.15}s`}}>
-            <div style={{height:13,background:"#1E293B",borderRadius:5,width:"40%",marginBottom:11}}/>
-            <div style={{height:17,background:"#1E293B",borderRadius:5,width:"88%",marginBottom:8}}/>
-            <div style={{height:13,background:"#1E293B",borderRadius:5,width:"72%"}}/>
+          <div key={i} style={{background:"var(--bg-card)",borderRadius:18,padding:18,marginBottom:13,animation:"pulse 1.4s ease-in-out infinite",animationDelay:`${i*.15}s`}}>
+            <div style={{height:13,background:"var(--bg-chip)",borderRadius:5,width:"40%",marginBottom:11}}/>
+            <div style={{height:17,background:"var(--bg-chip)",borderRadius:5,width:"88%",marginBottom:8}}/>
+            <div style={{height:13,background:"var(--bg-chip)",borderRadius:5,width:"72%"}}/>
           </div>
         )):filtered.map((n,i)=>(
           <div key={n.id} style={{animation:`fadeIn .3s ease both`,animationDelay:`${i*.05}s`}}>
@@ -513,14 +579,14 @@ function AnalysesScreen({analyses,loading,onRefresh,lastUpdate}){
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <div style={{width:32,height:32,background:"linear-gradient(135deg,#7C3AED,#EC4899)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🏛️</div>
           <div>
-            <div style={{color:"#F8FAFC",fontWeight:800,fontSize:17,letterSpacing:-0.5}}>التحاليل السياسية</div>
-            <div style={{color:"#64748B",fontSize:10.5}}>Workflow 2 · n8n</div>
+            <div style={{color:"var(--txt-h)",fontWeight:800,fontSize:17,letterSpacing:-0.5}}>التحاليل السياسية</div>
+            <div style={{color:"var(--txt-d)",fontSize:10.5}}>Workflow 2 · n8n</div>
           </div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <div style={{background:"#1E293B",borderRadius:12,padding:"4px 10px",display:"flex",alignItems:"center",gap:4}}>
+          <div style={{background:"var(--bg-chip)",borderRadius:12,padding:"4px 10px",display:"flex",alignItems:"center",gap:4}}>
             <div style={{width:7,height:7,background:"#A78BFA",borderRadius:"50%",animation:"pulse 2s infinite"}}/>
-            <span style={{color:"#94A3B8",fontSize:11,fontWeight:600}}>{analyses.length} مقال</span>
+            <span style={{color:"var(--txt-m)",fontSize:11,fontWeight:600}}>{analyses.length} مقال</span>
           </div>
           <button onClick={onRefresh} disabled={loading} style={{background:"none",border:"none",cursor:"pointer",color:"#7C3AED",fontSize:22,padding:4,opacity:loading?0.5:1}}>⟳</button>
         </div>
@@ -531,16 +597,16 @@ function AnalysesScreen({analyses,loading,onRefresh,lastUpdate}){
         );})}
       </div>
       <div style={{padding:"12px 20px 5px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-        <span style={{color:"#F1F5F9",fontWeight:800,fontSize:15}}>{activeCountry==="الكل"?"جميع المقالات":`مقالات ${activeCountry}`}</span>
-        <span style={{color:"#475569",fontSize:11}}>آخر تحديث {lastUpdate.toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})}</span>
+        <span style={{color:"var(--txt-p)",fontWeight:800,fontSize:15}}>{activeCountry==="الكل"?"جميع المقالات":`مقالات ${activeCountry}`}</span>
+        <span style={{color:"var(--txt-x)",fontSize:11}}>آخر تحديث {lastUpdate.toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})}</span>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"0 20px 20px"}}>
         {loading?[1,2].map(i=>(
-          <div key={i} style={{background:"#111827",borderRadius:20,overflow:"hidden",marginBottom:16,animation:"pulse 1.4s ease-in-out infinite"}}>
-            <div style={{height:160,background:"#1E293B"}}/>
+          <div key={i} style={{background:"var(--bg-card)",borderRadius:20,overflow:"hidden",marginBottom:16,animation:"pulse 1.4s ease-in-out infinite"}}>
+            <div style={{height:160,background:"var(--bg-chip)"}}/>
             <div style={{padding:"14px 16px 16px"}}>
-              <div style={{height:18,background:"#1E293B",borderRadius:6,width:"85%",marginBottom:10}}/>
-              <div style={{height:13,background:"#1E293B",borderRadius:5,width:"65%"}}/>
+              <div style={{height:18,background:"var(--bg-chip)",borderRadius:6,width:"85%",marginBottom:10}}/>
+              <div style={{height:13,background:"var(--bg-chip)",borderRadius:5,width:"65%"}}/>
             </div>
           </div>
         )):filtered.map((a,i)=>(
@@ -558,24 +624,24 @@ function NotificationsScreen({news,onBack}){
   return(
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"14px 20px 12px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-        <button onClick={onBack} style={{background:"#1E293B",border:"none",cursor:"pointer",color:"#94A3B8",fontSize:18,width:34,height:34,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
-        <div style={{color:"#F1F5F9",fontWeight:800,fontSize:16}}>التنبيهات</div>
+        <button onClick={onBack} style={{background:"var(--bg-chip)",border:"none",cursor:"pointer",color:"var(--txt-m)",fontSize:18,width:34,height:34,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
+        <div style={{color:"var(--txt-p)",fontWeight:800,fontSize:16}}>التنبيهات</div>
       </div>
       <div style={{overflowY:"auto",flex:1,padding:"0 20px 20px"}}>
         {urgent.length>0&&<>
-          <div style={{color:"#94A3B8",fontSize:11,fontWeight:700,marginBottom:10,letterSpacing:1}}>⚡ عاجل</div>
+          <div style={{color:"var(--txt-m)",fontSize:11,fontWeight:700,marginBottom:10,letterSpacing:1}}>⚡ عاجل</div>
           {urgent.map(n=>{const col=gc(n.countryCode);return(
             <div key={n.id} style={{background:"rgba(220,38,38,.08)",border:"1px solid rgba(220,38,38,.25)",borderRadius:14,padding:"12px 14px",marginBottom:10,display:"flex",gap:10}}>
               <div style={{width:36,height:36,background:"rgba(220,38,38,.15)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>🔴</div>
-              <div><div style={{color:"#FCA5A5",fontSize:12,fontWeight:700,marginBottom:3}}>{n.flag} {n.country}</div><div style={{color:"#F1F5F9",fontSize:13,fontWeight:600,lineHeight:1.4}}>{n.title}</div><div style={{color:"#64748B",fontSize:11,marginTop:4}}>{n.time}</div></div>
+              <div><div style={{color:"#FCA5A5",fontSize:12,fontWeight:700,marginBottom:3}}>{n.flag} {n.country}</div><div style={{color:"var(--txt-p)",fontSize:13,fontWeight:600,lineHeight:1.4}}>{n.title}</div><div style={{color:"var(--txt-d)",fontSize:11,marginTop:4}}>{n.time}</div></div>
             </div>
           );})}
         </>}
-        <div style={{color:"#94A3B8",fontSize:11,fontWeight:700,margin:"16px 0 10px",letterSpacing:1}}>🕐 الأحدث</div>
+        <div style={{color:"var(--txt-m)",fontSize:11,fontWeight:700,margin:"16px 0 10px",letterSpacing:1}}>🕐 الأحدث</div>
         {news.slice(0,5).map(n=>{const col=gc(n.countryCode);return(
-          <div key={n.id} style={{background:"#111827",border:"1px solid #1E293B",borderRadius:14,padding:"12px 14px",marginBottom:10,display:"flex",gap:10}}>
+          <div key={n.id} style={{background:"var(--bg-card)",border:"1px solid #1E293B",borderRadius:14,padding:"12px 14px",marginBottom:10,display:"flex",gap:10}}>
             <div style={{width:36,height:36,background:col.bg,border:`1px solid ${col.border}`,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{n.flag}</div>
-            <div style={{flex:1}}><div style={{color:col.accent,fontSize:12,fontWeight:700,marginBottom:3}}>{n.country} · {n.category}</div><div style={{color:"#E2E8F0",fontSize:13,lineHeight:1.4}}>{n.title}</div><div style={{color:"#64748B",fontSize:11,marginTop:4}}>{n.time}</div></div>
+            <div style={{flex:1}}><div style={{color:col.accent,fontSize:12,fontWeight:700,marginBottom:3}}>{n.country} · {n.category}</div><div style={{color:"#E2E8F0",fontSize:13,lineHeight:1.4}}>{n.title}</div><div style={{color:"var(--txt-d)",fontSize:11,marginTop:4}}>{n.time}</div></div>
           </div>
         );})}
       </div>
@@ -587,28 +653,28 @@ function SavedScreen({saved,onUnsave,onOpen,onBack}){
   return(
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"14px 20px 12px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-        <button onClick={onBack} style={{background:"#1E293B",border:"none",cursor:"pointer",color:"#94A3B8",fontSize:18,width:34,height:34,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
-        <div style={{color:"#F1F5F9",fontWeight:800,fontSize:16}}>المحفوظات</div>
-        <div style={{marginRight:"auto",background:"#1E293B",borderRadius:10,padding:"3px 10px"}}>
-          <span style={{color:"#94A3B8",fontSize:11,fontWeight:600}}>{saved.length} خبر</span>
+        <button onClick={onBack} style={{background:"var(--bg-chip)",border:"none",cursor:"pointer",color:"var(--txt-m)",fontSize:18,width:34,height:34,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
+        <div style={{color:"var(--txt-p)",fontWeight:800,fontSize:16}}>المحفوظات</div>
+        <div style={{marginRight:"auto",background:"var(--bg-chip)",borderRadius:10,padding:"3px 10px"}}>
+          <span style={{color:"var(--txt-m)",fontSize:11,fontWeight:600}}>{saved.length} خبر</span>
         </div>
       </div>
       <div style={{overflowY:"auto",flex:1,padding:"0 20px 20px"}}>
         {saved.length===0?(
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 20px",gap:12}}>
             <div style={{fontSize:48}}>🔖</div>
-            <div style={{color:"#64748B",fontSize:15,fontWeight:700}}>لا توجد أخبار محفوظة</div>
-            <div style={{color:"#475569",fontSize:13,textAlign:"center"}}>اضغط على 🔖 في أي خبر لحفظه هنا.</div>
+            <div style={{color:"var(--txt-d)",fontSize:15,fontWeight:700}}>لا توجد أخبار محفوظة</div>
+            <div style={{color:"var(--txt-x)",fontSize:13,textAlign:"center"}}>اضغط على 🔖 في أي خبر لحفظه هنا.</div>
           </div>
         ):saved.map(n=>{const col=gc(n.countryCode);return(
-          <div key={n.id} style={{background:"#111827",border:"1px solid #1E293B",borderRadius:18,padding:"14px 16px",marginBottom:13,position:"relative",overflow:"hidden"}}>
+          <div key={n.id} style={{background:"var(--bg-card)",border:"1px solid #1E293B",borderRadius:18,padding:"14px 16px",marginBottom:13,position:"relative",overflow:"hidden"}}>
             <div style={{position:"absolute",right:0,top:0,bottom:0,width:4,background:col.accent,borderRadius:"0 18px 18px 0"}}/>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:7}}>
               <span style={{background:col.bg,color:col.accent,fontSize:11,fontWeight:600,padding:"2px 9px",borderRadius:50,border:`1px solid ${col.border}`}}>{n.flag} {n.country}</span>
               <button onClick={()=>onUnsave(n.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#F59E0B",fontSize:16,padding:0}}>🔖</button>
             </div>
-            <div onClick={()=>onOpen(n)} style={{color:"#F1F5F9",fontSize:14,fontWeight:700,lineHeight:1.5,marginBottom:6,cursor:"pointer"}}>{n.title}</div>
-            <div style={{color:"#64748B",fontSize:11}}>{n.source} · {n.time}</div>
+            <div onClick={()=>onOpen(n)} style={{color:"var(--txt-p)",fontSize:14,fontWeight:700,lineHeight:1.5,marginBottom:6,cursor:"pointer"}}>{n.title}</div>
+            <div style={{color:"var(--txt-d)",fontSize:11}}>{n.source} · {n.time}</div>
           </div>
         );})}
       </div>
@@ -616,7 +682,7 @@ function SavedScreen({saved,onUnsave,onOpen,onBack}){
   );
 }
 
-function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,ri,setRi}){
+function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,ri,setRi,dark,setDark}){
   const [l1,setL1]=useState(wh1);
   const [l2,setL2]=useState(wh2);
   const [saved,setSaved]=useState(false);
@@ -628,47 +694,98 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,ri,setRi}){
     setSaved(true);
     setTimeout(()=>setSaved(false),2000);
   };
+
+  const V={
+    bg:"var(--bg-card)", bg2:"var(--bg-card2)", bgInput:"var(--bg-input)",
+    border:"var(--border)", border2:"var(--border2)",
+    chip:"var(--bg-chip)",
+    h:"var(--txt-p)", m:"var(--txt-m)", d:"var(--txt-d)", s:"var(--txt-s)",
+  };
+
   return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",transition:"background .25s"}}>
+      {/* Header */}
       <div style={{padding:"14px 20px 12px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-        <button onClick={onBack} style={{background:"#1E293B",border:"none",cursor:"pointer",color:"#94A3B8",fontSize:18,width:34,height:34,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
-        <div style={{color:"#F1F5F9",fontWeight:800,fontSize:16}}>الإعدادات</div>
+        <button onClick={onBack} style={{background:V.chip,border:"none",cursor:"pointer",color:V.m,fontSize:18,width:34,height:34,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
+        <div style={{color:V.h,fontWeight:800,fontSize:16}}>الإعدادات</div>
       </div>
+
       <div style={{overflowY:"auto",flex:1,padding:"0 20px 20px",display:"flex",flexDirection:"column",gap:14}}>
-        <div style={{background:"#111827",borderRadius:16,padding:16,border:"1px solid #1E293B"}}>
-          <div style={{color:"#94A3B8",fontSize:11,fontWeight:700,marginBottom:12,letterSpacing:1}}>📡 Workflow 1 — الأخبار</div>
-          <input value={l1} onChange={e=>setL1(e.target.value)} placeholder="https://n8n.example.com/webhook/news"
-            style={{width:"100%",background:"#0D1117",border:"1px solid #334155",borderRadius:10,padding:"9px 12px",color:"#E2E8F0",fontSize:11.5,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr"}}/>
+
+        {/* ── DARK MODE CARD ── */}
+        <div style={{background:V.bg,borderRadius:16,padding:"14px 16px",border:`1px solid ${V.border}`}}>
+          <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:14,letterSpacing:1}}>🎨 المظهر</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:36,height:36,borderRadius:10,background:dark?"rgba(37,99,235,.15)":"rgba(251,191,36,.12)",border:`1px solid ${dark?"rgba(37,99,235,.3)":"rgba(251,191,36,.3)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,transition:"all .3s"}}>
+                {dark?"🌙":"☀️"}
+              </div>
+              <div>
+                <div style={{color:V.h,fontSize:14,fontWeight:700}}>{dark?"الوضع الداكن":"الوضع الفاتح"}</div>
+                <div style={{color:V.d,fontSize:11,marginTop:2}}>{dark?"مريح للعيون ليلاً":"أوضح في الضوء"}</div>
+              </div>
+            </div>
+            {/* Custom toggle switch */}
+            <label className="theme-toggle" title="تبديل المظهر">
+              <input type="checkbox" checked={dark} onChange={e=>setDark(e.target.checked)} style={{position:"absolute",opacity:0,width:0,height:0}}/>
+              <div className="theme-track">
+                <span style={{fontSize:10}}>☀️</span>
+                <span style={{fontSize:10}}>🌙</span>
+              </div>
+              <div className="theme-thumb">{dark?"🌙":"☀️"}</div>
+            </label>
+          </div>
+
+
         </div>
-        <div style={{background:"#111827",borderRadius:16,padding:16,border:"1px solid rgba(124,58,237,.3)"}}>
+
+        {/* ── WEBHOOK 1 ── */}
+        <div style={{background:V.bg,borderRadius:16,padding:16,border:`1px solid ${V.border}`}}>
+          <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:12,letterSpacing:1}}>📡 Workflow 1 — الأخبار</div>
+          <input value={l1} onChange={e=>setL1(e.target.value)} placeholder="https://n8n.example.com/webhook/news"
+            style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"9px 12px",color:V.h,fontSize:11.5,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr",transition:"background .25s, border-color .25s"}}/>
+        </div>
+
+        {/* ── WEBHOOK 2 ── */}
+        <div style={{background:V.bg,borderRadius:16,padding:16,border:"1px solid rgba(124,58,237,.3)"}}>
           <div style={{color:"#A78BFA",fontSize:11,fontWeight:700,marginBottom:12,letterSpacing:1}}>🏛️ Workflow 2 — التحاليل السياسية</div>
           <input value={l2} onChange={e=>setL2(e.target.value)} placeholder="https://n8n.example.com/webhook/analyses"
-            style={{width:"100%",background:"#0D1117",border:"1px solid #334155",borderRadius:10,padding:"9px 12px",color:"#E2E8F0",fontSize:11.5,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr"}}/>
+            style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"9px 12px",color:V.h,fontSize:11.5,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr",transition:"background .25s, border-color .25s"}}/>
         </div>
+
+        {/* ── SAVE BUTTON ── */}
         <button onClick={save} style={{padding:"13px",borderRadius:13,border:"none",cursor:"pointer",
           background:saved?"rgba(34,197,94,.15)":"linear-gradient(135deg,#2563EB,#7C3AED)",
-          color:saved?"#22C55E":"#fff",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>
+          color:saved?"#22C55E":"#fff",fontWeight:700,fontSize:14,fontFamily:"inherit",transition:"all .3s"}}>
           {saved?"✅ تم الحفظ":"حفظ الإعدادات"}
         </button>
-        <div style={{background:"#111827",borderRadius:16,padding:16,border:"1px solid #1E293B"}}>
-          <div style={{color:"#94A3B8",fontSize:11,fontWeight:700,marginBottom:12,letterSpacing:1}}>⏱️ تكرار التحديث</div>
+
+        {/* ── REFRESH INTERVAL ── */}
+        <div style={{background:V.bg,borderRadius:16,padding:16,border:`1px solid ${V.border}`}}>
+          <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:12,letterSpacing:1}}>⏱️ تكرار التحديث</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             {itvs.map(it=>(
-              <button key={it.val} onClick={()=>setRi(it.val)} style={{padding:"10px 8px",borderRadius:10,border:`1px solid ${ri===it.val?"#2563EB":"#1E293B"}`,cursor:"pointer",
-                background:ri===it.val?"rgba(37,99,235,.15)":"#0D1117",
-                color:ri===it.val?"#60A5FA":"#64748B",fontWeight:ri===it.val?700:500,fontSize:12,fontFamily:"inherit"}}>{it.label}</button>
+              <button key={it.val} onClick={()=>setRi(it.val)} style={{padding:"10px 8px",borderRadius:10,
+                border:`1px solid ${ri===it.val?"#2563EB":V.border}`,cursor:"pointer",
+                background:ri===it.val?"rgba(37,99,235,.15)":V.bgInput,
+                color:ri===it.val?"#60A5FA":V.d,fontWeight:ri===it.val?700:500,fontSize:12,fontFamily:"inherit",transition:"all .2s"}}>
+                {it.label}
+              </button>
             ))}
           </div>
         </div>
-        <div style={{background:"#111827",borderRadius:16,padding:16,border:"1px solid #1E293B"}}>
-          <div style={{color:"#94A3B8",fontSize:11,fontWeight:700,marginBottom:12,letterSpacing:1}}>ℹ️ عن التطبيق</div>
-          {[["الإصدار","3.0.0 PWA"],["المحرك","Claude AI · Anthropic"],["Workflow 1","أخبار n8n"],["Workflow 2","تحاليل n8n"],["التثبيت","PWA متاح"]].map(([k,v])=>(
-            <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #1E293B"}}>
-              <span style={{color:"#64748B",fontSize:13}}>{k}</span>
-              <span style={{color:"#E2E8F0",fontSize:13,fontWeight:600}}>{v}</span>
+
+        {/* ── ABOUT ── */}
+        <div style={{background:V.bg,borderRadius:16,padding:16,border:`1px solid ${V.border}`}}>
+          <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:12,letterSpacing:1}}>ℹ️ عن التطبيق</div>
+          {[["الإصدار","3.1.0 PWA"],["المحرك","Claude AI · Anthropic"],["Workflow 1","أخبار n8n"],["Workflow 2","تحاليل n8n"],["المظهر",dark?"🌙 داكن":"☀️ فاتح"]].map(([k,v])=>(
+            <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${V.border}`}}>
+              <span style={{color:V.d,fontSize:13}}>{k}</span>
+              <span style={{color:V.h,fontSize:13,fontWeight:600}}>{v}</span>
             </div>
           ))}
         </div>
+
       </div>
     </div>
   );
@@ -692,6 +809,13 @@ function App(){
   const [wh1,setWh1]=useState(()=>localStorage.getItem("wh1")||"https://your-app.onrender.com/webhook/news");
   const [wh2,setWh2]=useState(()=>localStorage.getItem("wh2")||"https://your-app.onrender.com/webhook/analyses");
   const [ri,setRi]=useState(300);
+  const [dark,setDark]=useState(()=>localStorage.getItem("theme")!=="light");
+
+  // Apply theme class to <html>
+  useEffect(()=>{
+    document.documentElement.classList.toggle("light",!dark);
+    localStorage.setItem("theme", dark?"dark":"light");
+  },[dark]);
 
   // Detect if running as PWA — full screen no phone shell
   const pwa=isStandalone();
@@ -725,17 +849,19 @@ function App(){
 
   // Shell styles: phone frame on desktop, full screen on mobile/PWA
   const shellStyle = pwa ? {
-    width:"100%", height:"100%", background:"#0D1117",
+    width:"100%", height:"100%", background:"var(--bg-shell)",
     display:"flex", flexDirection:"column", direction:"rtl", overflow:"hidden",
     paddingTop:"env(safe-area-inset-top)", paddingBottom:"env(safe-area-inset-bottom)",
+    transition:"background .25s",
   } : {
     width: window.innerWidth <= 480 ? "100%" : 390,
     height: window.innerWidth <= 480 ? "100%" : 844,
-    background:"#0D1117",
+    background:"var(--bg-shell)",
     borderRadius: window.innerWidth <= 480 ? 0 : 44,
     overflow:"hidden", position:"relative",
     display:"flex", flexDirection:"column", direction:"rtl",
-    boxShadow: window.innerWidth <= 480 ? "none" : "0 40px 80px rgba(0,0,0,.8),inset 0 0 0 1px #1E293B",
+    boxShadow: window.innerWidth <= 480 ? "none" : `0 40px 80px var(--shadow),inset 0 0 0 1px var(--border)`,
+    transition:"background .25s, box-shadow .25s",
   };
 
   return(
@@ -754,7 +880,7 @@ function App(){
 
       {/* Notch — only on desktop simulator */}
       {!pwa && window.innerWidth > 480 && (
-        <div style={{position:"absolute",top:0,left:"50%",transform:"translateX(-50%)",width:120,height:34,background:"#0D1117",borderRadius:"0 0 20px 20px",zIndex:30}}/>
+        <div style={{position:"absolute",top:0,left:"50%",transform:"translateX(-50%)",width:120,height:34,background:"var(--notch)",borderRadius:"0 0 20px 20px",zIndex:30,transition:"background .25s"}}/>
       )}
 
       <StatusBar/>
@@ -764,11 +890,11 @@ function App(){
         {tab==="analyse"&&<AnalysesScreen analyses={analyses} loading={loadA} onRefresh={doLoadAn} lastUpdate={lastA}/>}
         {tab==="notif"&&<NotificationsScreen news={news} onBack={()=>setTab("home")}/>}
         {tab==="saved"&&<SavedScreen saved={savedNews} onUnsave={id=>toggleSave({id})} onOpen={n=>{setDrawerNews(n);setTab("home");}} onBack={()=>setTab("home")}/>}
-        {tab==="settings"&&<SettingsScreen onBack={()=>setTab("home")} wh1={wh1} setWh1={setWh1} wh2={wh2} setWh2={setWh2} ri={ri} setRi={setRi}/>}
+        {tab==="settings"&&<SettingsScreen onBack={()=>setTab("home")} wh1={wh1} setWh1={setWh1} wh2={wh2} setWh2={setWh2} ri={ri} setRi={setRi} dark={dark} setDark={setDark}/>}
       </div>
 
       {/* Bottom nav */}
-      <div style={{background:"#0A1120",borderTop:"1px solid #1E293B",padding:`9px 0 max(19px, env(safe-area-inset-bottom))`,display:"flex",justifyContent:"space-around",zIndex:5,flexShrink:0}}>
+      <div style={{background:"var(--bg-nav)",borderTop:"1px solid var(--border)",padding:`9px 0 max(19px, env(safe-area-inset-bottom))`,display:"flex",justifyContent:"space-around",zIndex:5,flexShrink:0,transition:"background .25s, border-color .25s"}}>
         {navItems.map(item=>{
           const isActive=tab===item.id;
           const badge=item.id==="notif"?urgentCount:item.id==="saved"?savedNews.length:0;
@@ -777,9 +903,9 @@ function App(){
             <button key={item.id} onClick={()=>setTab(item.id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"3px 6px",position:"relative"}}>
               <div style={{position:"relative"}}>
                 <span style={{fontSize:19}}>{item.icon}</span>
-                {badge>0&&<div style={{position:"absolute",top:-4,right:-6,background:"#DC2626",color:"#fff",fontSize:9,fontWeight:800,minWidth:15,height:15,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",border:"2px solid #0A1120"}}>{badge}</div>}
+                {badge>0&&<div style={{position:"absolute",top:-4,right:-6,background:"#DC2626",color:"#fff",fontSize:9,fontWeight:800,minWidth:15,height:15,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",border:"2px solid var(--bg-nav)"}}>{badge}</div>}
               </div>
-              <span style={{color:isActive?ac:"#475569",fontSize:9.5,fontWeight:isActive?700:500}}>{item.label}</span>
+              <span style={{color:isActive?ac:"var(--txt-x)",fontSize:9.5,fontWeight:isActive?700:500}}>{item.label}</span>
               {isActive&&<div style={{width:4,height:4,background:ac,borderRadius:"50%"}}/>}
             </button>
           );
