@@ -248,33 +248,42 @@ function rgba(hex,a){
 function gc(code){const accent=PC[code]||hc(code);return{accent,bg:rgba(accent,.08),border:rgba(accent,.3)};}
 const CATI={اقتصاد:"📈",تقنية:"💡",سياسة:"🏛️",رياضة:"⚽",صحة:"🏥",ثقافة:"🎭",عام:"📰"};
 
-async function fetchNews(url){
-  if(!url || url.includes("your-n8n.com")) return MOCK_NEWS;
-  try{
-    const res=await fetch(url,{method:"GET",headers:{"Accept":"application/json","Content-Type":"application/json"}});
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    const data=await res.json();
-    const arr=Array.isArray(data)?data:(data.data||data.items||data.news||data.results||null);
-    if(!arr||!arr.length) throw new Error("empty");
-    return arr;
-  }catch(e){
-    console.warn("fetchNews →",e.message,"· using mock data");
-    return MOCK_NEWS;
+// ══════════════════════════════════════════════
+//  UNIVERSAL N8N PARSER
+// ══════════════════════════════════════════════
+function parseN8NResponse(data){
+  if(!data) return null;
+  // [{json:{...}},...] — n8n "Last Node" wrapping
+  if(Array.isArray(data)&&data.length>0&&data[0]?.json!==undefined){
+    const u=data.map(i=>i.json);
+    if(Array.isArray(u[0])) return u[0]; // [{json:[...]}]
+    return u;                             // [{json:{...}},...]
   }
+  if(Array.isArray(data)) return data;   // [{id,...},...]  propre
+  if(data.id!==undefined) return [data]; // {id,...} objet seul
+  const arr=data.items||data.data||data.news||data.analyses||data.results||data.content;
+  if(Array.isArray(arr)) return arr;
+  if(data.json) return Array.isArray(data.json)?data.json:[data.json];
+  return null;
+}
+
+async function fetchNews(url){
+  if(!url||url.includes("your-app")) return MOCK_NEWS;
+  try{
+    const res=await fetch(url,{method:"GET",headers:{"Accept":"application/json"}});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const parsed=parseN8NResponse(await res.json());
+    return parsed&&parsed.length>0?parsed:MOCK_NEWS;
+  }catch(e){ console.warn("fetchNews →",e.message); return MOCK_NEWS; }
 }
 async function fetchAnalyses(url){
-  if(!url || url.includes("your-n8n.com")) return MOCK_ANALYSES;
+  if(!url||url.includes("your-app")) return MOCK_ANALYSES;
   try{
-    const res=await fetch(url,{method:"GET",headers:{"Accept":"application/json","Content-Type":"application/json"}});
+    const res=await fetch(url,{method:"GET",headers:{"Accept":"application/json"}});
     if(!res.ok) throw new Error("HTTP "+res.status);
-    const data=await res.json();
-    const arr=Array.isArray(data)?data:(data.data||data.items||data.analyses||data.results||null);
-    if(!arr||!arr.length) throw new Error("empty");
-    return arr;
-  }catch(e){
-    console.warn("fetchAnalyses →",e.message,"· using mock data");
-    return MOCK_ANALYSES;
-  }
+    const parsed=parseN8NResponse(await res.json());
+    return parsed&&parsed.length>0?parsed:MOCK_ANALYSES;
+  }catch(e){ console.warn("fetchAnalyses →",e.message); return MOCK_ANALYSES; }
 }
 
 async function genComment(title,summary){
@@ -692,10 +701,11 @@ function SavedScreen({saved,onUnsave,onOpen,onBack}){
   );
 }
 
-function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,ri,setRi,dark,setDark,isAdmin,setIsAdmin}){
+function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,setRi,dark,setDark,isAdmin,setIsAdmin}){
   const [l1,setL1]=useState(wh1);
   const [l2,setL2]=useState(wh2);
   const [l3,setL3]=useState(wh3);
+  const [l4,setL4]=useState(wh4);
   const [saved,setSaved]=useState(false);
   const [showLogin,setShowLogin]=useState(false);
   const [loginId,setLoginId]=useState("");
@@ -713,10 +723,11 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,ri,setRi,dark,s
   };
 
   const saveAdmin=()=>{
-    setWh1(l1);setWh2(l2);setWh3(l3);
+    setWh1(l1);setWh2(l2);setWh3(l3);setWh4(l4);
     localStorage.setItem("wh1",l1);
     localStorage.setItem("wh2",l2);
     localStorage.setItem("wh3",l3);
+    localStorage.setItem("wh4",l4);
     setSaved(true);
     setTimeout(()=>setSaved(false),2500);
   };
@@ -795,10 +806,21 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,ri,setRi,dark,s
           </div>
 
           <div style={{background:V.bg,borderRadius:16,padding:16,border:"1px solid rgba(245,158,11,.3)"}}>
-            <div style={{color:"#F59E0B",fontSize:11,fontWeight:700,marginBottom:12,letterSpacing:1}}>📋 Workflow 3 — مراجعة المحتوى</div>
+            <div style={{color:"#F59E0B",fontSize:11,fontWeight:700,marginBottom:12,letterSpacing:1}}>📋 Workflow 3 — جلب المحتوى للمراجعة</div>
+            <div style={{color:V.d,fontSize:11,marginBottom:6}}>GET — يجلب الأخبار والمقالات في انتظار الموافقة</div>
             <input value={l3} onChange={e=>setL3(e.target.value)} placeholder="https://n8n.example.com/webhook/review"
               style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"9px 12px",color:V.h,fontSize:11.5,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr"}}/>
-            <div style={{marginTop:8,color:V.d,fontSize:11,lineHeight:1.6}}>يستقبل المحتوى من n8n للمراجعة، ويُرسل قرار النشر أو الرفض مع التعديلات إلى نفس الـ webhook.</div>
+          </div>
+
+          <div style={{background:V.bg,borderRadius:16,padding:16,border:"1px solid rgba(239,68,68,.3)"}}>
+            <div style={{color:"#F87171",fontSize:11,fontWeight:700,marginBottom:12,letterSpacing:1}}>📤 Workflow 3 — إرسال قرار المدير</div>
+            <div style={{color:V.d,fontSize:11,marginBottom:6}}>POST — يرسل قرار النشر أو الرفض مع التعديلات</div>
+            <input value={l4} onChange={e=>setL4(e.target.value)} placeholder="https://n8n.example.com/webhook/review-action"
+              style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"9px 12px",color:V.h,fontSize:11.5,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr"}}/>
+            <div style={{marginTop:8,background:"rgba(239,68,68,.05)",borderRadius:8,padding:"8px 10px",border:"1px solid rgba(239,68,68,.1)"}}>
+              <div style={{color:"#F87171",fontSize:10,fontWeight:700,marginBottom:4}}>Payload envoyé :</div>
+              <pre style={{color:V.d,fontSize:9.5,margin:0,direction:"ltr",fontFamily:"monospace",lineHeight:1.6}}>{`{ "id", "type", "approved": true/false,\n  "editedAt", "content": {...} }`}</pre>
+            </div>
           </div>
 
           <div style={{background:V.bg,borderRadius:16,padding:16,border:`1px solid ${V.border}`}}>
@@ -936,7 +958,7 @@ const MOCK_PENDING = [
     image:"https://images.unsplash.com/photo-1539020140153-e479b8c22e70?w=800&q=80" },
 ];
 
-function ReviewScreen({wh3,dark,onBack}){
+function ReviewScreen({wh3,wh4,dark,onBack}){
   const [items,setItems]=useState([]);
   const [loading,setLoading]=useState(false);
   const [editing,setEditing]=useState(null); // item being edited
@@ -950,14 +972,31 @@ function ReviewScreen({wh3,dark,onBack}){
     h:"var(--txt-p)",m:"var(--txt-m)",d:"var(--txt-d)",
   };
 
+  // Normalise n8n output → toujours un array d'items propres
+  const parseN8N=(data)=>parseN8NResponse(data);
+
   const load=async()=>{
     setLoading(true);
     try{
-      if(!wh3||wh3.includes("your-app")){setItems(MOCK_PENDING);setLoading(false);return;}
+      if(!wh3||wh3.includes("your-app")){
+        setItems(MOCK_PENDING);
+        setLoading(false);
+        return;
+      }
       const res=await fetch(wh3,{method:"GET",headers:{"Accept":"application/json"}});
-      const data=await res.json();
-      setItems(Array.isArray(data)?data:MOCK_PENDING);
-    }catch(e){setItems(MOCK_PENDING);}
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const raw=await res.json();
+      const parsed=parseN8N(raw);
+      if(parsed&&parsed.length>0){
+        setItems(parsed);
+      } else {
+        // Rien à valider — liste vide normale
+        setItems([]);
+      }
+    }catch(e){
+      console.warn("ReviewScreen load error:",e.message);
+      setItems(MOCK_PENDING);
+    }
     setLoading(false);
   };
   useEffect(()=>{load();},[wh3]);
@@ -970,10 +1009,21 @@ function ReviewScreen({wh3,dark,onBack}){
       content:item,
     };
     try{
-      if(wh3&&!wh3.includes("your-app")){
-        await fetch(wh3,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      const actionUrl=wh4&&!wh4.includes("your-app")?wh4:null;
+      if(actionUrl){
+        const res=await fetch(actionUrl,{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(payload)
+        });
+        if(!res.ok) console.warn("sendDecision HTTP",res.status);
+        else console.log("✅ Décision envoyée à n8n:",approved?"publié":"rejeté",item.id);
+      } else {
+        console.log("📋 [test] Décision:",approved?"✅ publié":"❌ rejeté","→",item.title);
       }
-    }catch(e){}
+    }catch(e){
+      console.warn("sendDecision error:",e.message);
+    }
     setDoneIds(prev=>({...prev,[item.id]:approved?"approved":"rejected"}));
     setSendingId(null);
     setTimeout(()=>{setItems(prev=>prev.filter(i=>i.id!==item.id));},800);
@@ -1169,6 +1219,7 @@ function App(){
   const [wh1,setWh1]=useState(()=>localStorage.getItem("wh1")||"https://your-app.onrender.com/webhook/news");
   const [wh2,setWh2]=useState(()=>localStorage.getItem("wh2")||"https://your-app.onrender.com/webhook/analyses");
   const [wh3,setWh3]=useState(()=>localStorage.getItem("wh3")||"https://your-app.onrender.com/webhook/review");
+  const [wh4,setWh4]=useState(()=>localStorage.getItem("wh4")||"https://your-app.onrender.com/webhook/review-action");
   const [ri,setRi]=useState(300);
   const [dark,setDark]=useState(()=>localStorage.getItem("theme")!=="light");
   const [isAdmin,setIsAdmin]=useState(()=>localStorage.getItem("isAdmin")==="1");
@@ -1249,8 +1300,8 @@ function App(){
         {tab==="analyse"&&<AnalysesScreen analyses={analyses} loading={loadA} onRefresh={doLoadAn} lastUpdate={lastA}/>}
         {tab==="notif"&&<NotificationsScreen news={news} onBack={()=>setTab("home")}/>}
         {tab==="saved"&&!isAdmin&&<SavedScreen saved={savedNews} onUnsave={id=>toggleSave({id})} onOpen={n=>{setDrawerNews(n);setTab("home");}} onBack={()=>setTab("home")}/>}
-        {tab==="review"&&isAdmin&&<ReviewScreen wh3={wh3} dark={dark} onBack={()=>setTab("home")}/>}
-        {tab==="settings"&&<SettingsScreen onBack={()=>setTab("home")} wh1={wh1} setWh1={setWh1} wh2={wh2} setWh2={setWh2} wh3={wh3} setWh3={setWh3} ri={ri} setRi={setRi} dark={dark} setDark={setDark} isAdmin={isAdmin} setIsAdmin={setIsAdmin}/>}
+        {tab==="review"&&isAdmin&&<ReviewScreen wh3={wh3} wh4={wh4} dark={dark} onBack={()=>setTab("home")}/>}
+        {tab==="settings"&&<SettingsScreen onBack={()=>setTab("home")} wh1={wh1} setWh1={setWh1} wh2={wh2} setWh2={setWh2} wh3={wh3} setWh3={setWh3} wh4={wh4} setWh4={setWh4} ri={ri} setRi={setRi} dark={dark} setDark={setDark} isAdmin={isAdmin} setIsAdmin={setIsAdmin}/>}
       </div>
 
       {/* Bottom nav */}
