@@ -938,24 +938,49 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,s
 // ══════════════════════════════════════════════
 //  CONTENT REVIEW — admin only (Workflow 3)
 // ══════════════════════════════════════════════
+// MOCK_PENDING — reflète exactement les colonnes Supabase
+// (utilisé uniquement si wh3 n'est pas configuré)
 const MOCK_PENDING = [
-  { id:"p1", type:"news", country:"السعودية", countryCode:"SA", flag:"🇸🇦",
-    category:"اقتصاد", title:"أرامكو تُعلن شراكة استراتيجية جديدة مع شركة تقنية أمريكية",
-    summary:"أبرمت أرامكو السعودية اتفاقية تعاون مع إحدى كبرى شركات التقنية الأمريكية لتطوير منظومة إدارة البيانات في قطاع الطاقة باستخدام الذكاء الاصطناعي.",
+  {
+    id:"uuid-p1-supabase",        // uuid Supabase
+    type:"news",
+    country:"السعودية", countryCode:"SA", flag:"🇸🇦",
+    category:"اقتصاد",
+    title:"أرامكو تُعلن شراكة استراتيجية مع شركة تقنية أمريكية",
+    body:"أبرمت أرامكو السعودية اتفاقية تعاون مع إحدى كبرى شركات التقنية الأمريكية لتطوير منظومة إدارة البيانات في قطاع الطاقة باستخدام الذكاء الاصطناعي.",
+    summary:"أبرمت أرامكو السعودية اتفاقية تعاون مع إحدى كبرى شركات التقنية الأمريكية.",
     analysis:"تُعدّ هذه الشراكة خطوةً استراتيجية تعكس توجّه أرامكو نحو الرقمنة الشاملة، في سياق المنافسة المتصاعدة على الريادة التقنية في قطاع الطاقة عالمياً.",
-    source:"رويترز", time:"منذ 15 دقيقة", urgent:false, views:"0" },
-  { id:"p2", type:"news", country:"مصر", countryCode:"EG", flag:"🇪🇬",
-    category:"سياسة", title:"مصر تستضيف قمة إقليمية لبحث ملفات الأمن الغذائي",
-    summary:"تستضيف القاهرة قمةً إقليمية تجمع ممثلي 14 دولة عربية وأفريقية لبحث تحديات الأمن الغذائي في ظل التحولات المناخية وارتفاع أسعار السلع الأساسية.",
-    analysis:"يكشف هذا الحدث عن دور مصر المتنامي كوسيط إقليمي في قضايا الاستقرار الغذائي، وهو رهان ذكي لتوظيف موقعها الجغرافي والدبلوماسي في خضم تحولات جيوسياسية متسارعة.",
-    source:"الأهرام", time:"منذ 40 دقيقة", urgent:true, views:"0" },
-  { id:"p3", type:"article", country:"المغرب", countryCode:"MA", flag:"🇲🇦",
+    source:"رويترز", author:null, readTime:"3 دقائق",
+    publishedAt:new Date().toISOString(), tags:["اقتصاد","تقنية"],
+    image:null, urgent:false, views:"0", validation:null
+  },
+  {
+    id:"uuid-p2-supabase",
+    type:"news",
+    country:"مصر", countryCode:"EG", flag:"🇪🇬",
+    category:"سياسة",
+    title:"مصر تستضيف قمة إقليمية لبحث ملفات الأمن الغذائي",
+    body:"تستضيف القاهرة قمةً إقليمية تجمع ممثلي 14 دولة عربية وأفريقية لبحث تحديات الأمن الغذائي.",
+    summary:"تستضيف القاهرة قمةً إقليمية تجمع ممثلي 14 دولة عربية وأفريقية.",
+    analysis:"يكشف هذا الحدث عن دور مصر المتنامي كوسيط إقليمي في قضايا الاستقرار الغذائي.",
+    source:"الأهرام", author:null, readTime:"2 دقائق",
+    publishedAt:new Date().toISOString(), tags:["سياسة","أمن غذائي"],
+    image:null, urgent:true, views:"0", validation:null
+  },
+  {
+    id:"uuid-p3-supabase",
+    type:"article",
+    country:"المغرب", countryCode:"MA", flag:"🇲🇦",
+    category:"سياسة",
     title:"الرهان الأفريقي للمغرب: بين الطموح والواقع",
-    body:"يسعى المغرب بخطى ثابتة إلى ترسيخ حضوره في القارة الأفريقية، مستثمراً انتماءه الجغرافي والحضاري ورصيده الدبلوماسي المتراكم.\n\nتتجلى هذه الاستراتيجية في التوسع الاقتصادي لشركات مغربية كبرى في أسواق أفريقيا جنوب الصحراء، ومنها البنك الشعبي وشركة ماروك تيليكوم.\n\nغير أن هذا الطموح يواجه منافسة شرسة من قوى إقليمية ودولية أخرى تتنافس على النفوذ في ذات الفضاء الأفريقي.",
+    body:"يسعى المغرب بخطى ثابتة إلى ترسيخ حضوره في القارة الأفريقية.\n\nتتجلى هذه الاستراتيجية في التوسع الاقتصادي لشركات مغربية كبرى.\n\nغير أن هذا الطموح يواجه منافسة شرسة من قوى إقليمية ودولية.",
+    summary:"يسعى المغرب إلى ترسيخ حضوره في القارة الأفريقية.",
+    analysis:"يُمثّل المغرب نموذجاً فريداً في الدبلوماسية الاقتصادية الأفريقية.",
     author:"د. كريم العمراني", readTime:"6 دقائق",
-    publishedAt: new Date().toISOString(),
-    tags:["المغرب","أفريقيا","دبلوماسية"],
-    image:"https://images.unsplash.com/photo-1539020140153-e479b8c22e70?w=800&q=80" },
+    publishedAt:new Date().toISOString(), tags:["المغرب","أفريقيا","دبلوماسية"],
+    image:"https://images.unsplash.com/photo-1539020140153-e479b8c22e70?w=800&q=80",
+    source:"تحليل خاص", urgent:false, views:"0", validation:null
+  },
 ];
 
 function ReviewScreen({wh3,wh4,dark,onBack}){
@@ -975,11 +1000,14 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
   // Normalise n8n output → toujours un array d'items propres
   const parseN8N=(data)=>parseN8NResponse(data);
 
+  const [lastLoaded,setLastLoaded]=useState(null);
+
   const load=async()=>{
     setLoading(true);
     try{
       if(!wh3||wh3.includes("your-app")){
         setItems(MOCK_PENDING);
+        setLastLoaded(new Date());
         setLoading(false);
         return;
       }
@@ -987,39 +1015,65 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
       if(!res.ok) throw new Error("HTTP "+res.status);
       const raw=await res.json();
       const parsed=parseN8N(raw);
-      if(parsed&&parsed.length>0){
-        setItems(parsed);
-      } else {
-        // Rien à valider — liste vide normale
-        setItems([]);
-      }
+      setItems(parsed&&parsed.length>0?parsed:[]);
+      setLastLoaded(new Date());
     }catch(e){
       console.warn("ReviewScreen load error:",e.message);
       setItems(MOCK_PENDING);
+      setLastLoaded(new Date());
     }
     setLoading(false);
   };
-  useEffect(()=>{load();},[wh3]);
+  useEffect(()=>{load();},[]);  // charge une seule fois au montage
 
   const sendDecision=async(item,approved)=>{
-    setSendingId(item.id+approved);
+    setSendingId(item.id+(approved?"true":"false"));
+
+    // Payload aligné sur les colonnes Supabase
+    // n8n fera UPDATE WHERE id = payload.id
     const payload={
-      id:item.id, type:item.type, approved,
-      editedAt:new Date().toISOString(),
-      content:item,
+      id:           item.id,          // uuid Supabase — clé primaire
+      validation:   approved,          // true / false → colonne validation
+      validated_at: new Date().toISOString(),
+      // Champs modifiables par l'admin → colonnes Supabase
+      content:{
+        title:       item.title       || null,
+        body:        item.summary     || item.body || null,
+        analysis:    item.analysis    || null,
+        category:    item.category    || null,
+        urgent:      item.urgent      ?? false,
+        source:      item.source      || null,
+        author:      item.author      || null,
+        readTime:    item.readTime    || null,
+        tags:        item.tags        || [],
+        image:       item.image       || null,
+        country:     item.country     || null,
+        countryCode: item.countryCode || null,
+        flag:        item.flag        || null,
+      }
     };
     try{
       const actionUrl=wh4&&!wh4.includes("your-app")?wh4:null;
       if(actionUrl){
         const res=await fetch(actionUrl,{
           method:"POST",
-          headers:{"Content-Type":"application/json"},
+          headers:{"Content-Type":"application/json","Accept":"application/json"},
           body:JSON.stringify(payload)
         });
-        if(!res.ok) console.warn("sendDecision HTTP",res.status);
-        else console.log("✅ Décision envoyée à n8n:",approved?"publié":"rejeté",item.id);
+        if(!res.ok){
+          console.warn("sendDecision HTTP",res.status);
+        } else {
+          const result=await res.json().catch(()=>({}));
+          console.log("✅ n8n reçu:",result);
+          console.log(approved
+            ? `📰 Publié → Supabase UPDATE id=${item.id} validation=true`
+            : `🗑️ Rejeté → Supabase UPDATE id=${item.id} validation=false`
+          );
+        }
       } else {
-        console.log("📋 [test] Décision:",approved?"✅ publié":"❌ rejeté","→",item.title);
+        // Mode test — pas de wh4 configuré
+        console.log("📋 [mode test] payload qui serait envoyé à n8n :");
+        console.log(JSON.stringify(payload, null, 2));
       }
     }catch(e){
       console.warn("sendDecision error:",e.message);
@@ -1120,9 +1174,14 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
         <div style={{width:32,height:32,background:"linear-gradient(135deg,#F59E0B,#EF4444)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📋</div>
         <div style={{flex:1}}>
           <div style={{color:V.h,fontWeight:800,fontSize:17,letterSpacing:-0.5}}>مراجعة المحتوى</div>
-          <div style={{color:V.d,fontSize:10.5}}>Workflow 3 · {items.length} عنصر بانتظار الموافقة</div>
+          <div style={{color:V.d,fontSize:10.5}}>
+            {items.length} عنصر
+            {lastLoaded&&` · تم الجلب ${lastLoaded.toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})}`}
+          </div>
         </div>
-        <button onClick={load} disabled={loading} style={{background:"none",border:"none",cursor:"pointer",color:"#F59E0B",fontSize:22,padding:4,opacity:loading?0.4:1}}>⟳</button>
+        <button onClick={load} disabled={loading} title="تحديث يدوي" style={{background:"rgba(245,158,11,.12)",border:"1px solid rgba(245,158,11,.3)",borderRadius:10,width:36,height:36,cursor:"pointer",color:"#F59E0B",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",opacity:loading?0.4:1,transition:"opacity .2s"}}>
+          {loading?<span style={{display:"inline-block",width:14,height:14,border:"2px solid #F59E0B",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .8s linear infinite"}}/>:"⟳"}
+        </button>
       </div>
 
       {/* List */}
@@ -1167,7 +1226,7 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
               <div style={{padding:"10px 14px"}}>
                 <div style={{color:V.h,fontSize:13.5,fontWeight:700,lineHeight:1.5,marginBottom:6}}>{item.title}</div>
                 <div style={{color:V.d,fontSize:12,lineHeight:1.65,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>
-                  {item.type==="news"?item.summary:item.body?.split("\n\n")[0]}
+                  {item.type==="news"?(item.summary||item.body):item.body?.split("\n\n")[0]}
                 </div>
                 {item.type==="news"&&item.analysis&&(
                   <div style={{marginTop:8,background:dark?"rgba(37,99,235,.06)":"rgba(37,99,235,.04)",borderRadius:8,padding:"8px 10px",border:`1px solid ${dark?"rgba(37,99,235,.15)":"rgba(37,99,235,.08)"}`}}>
