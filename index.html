@@ -1002,11 +1002,16 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
 
   const [lastLoaded,setLastLoaded]=useState(null);
 
-  const load=async()=>{
-    setLoading(true);
+  const load=async(silent=false)=>{
+    if(!silent) setLoading(true);
     try{
       if(!wh3||wh3.includes("your-app")){
-        setItems(MOCK_PENDING);
+        // Mode mock — merge avec items existants non traités
+        setItems(prev=>{
+          const existingIds=new Set(prev.map(i=>i.id));
+          const newItems=MOCK_PENDING.filter(i=>!existingIds.has(i.id));
+          return [...prev, ...newItems];
+        });
         setLastLoaded(new Date());
         setLoading(false);
         return;
@@ -1015,14 +1020,24 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
       if(!res.ok) throw new Error("HTTP "+res.status);
       const raw=await res.json();
       const parsed=parseN8N(raw);
-      setItems(parsed&&parsed.length>0?parsed:[]);
+      if(parsed&&parsed.length>0){
+        // ══ ACCUMULATION — ne jamais écraser les items non traités ══
+        setItems(prev=>{
+          const doneSet=new Set(Object.keys(doneIds)); // déjà traités
+          const existingIds=new Set(prev.map(i=>i.id));
+          // Garder les items existants non traités
+          const kept=prev.filter(i=>!doneSet.has(i.id));
+          // Ajouter seulement les nouveaux items inconnus
+          const incoming=parsed.filter(i=>!existingIds.has(i.id)&&!doneSet.has(i.id));
+          return [...kept,...incoming];
+        });
+      }
       setLastLoaded(new Date());
     }catch(e){
       console.warn("ReviewScreen load error:",e.message);
-      setItems(MOCK_PENDING);
-      setLastLoaded(new Date());
+      if(!silent) setItems(prev=>prev.length>0?prev:MOCK_PENDING);
     }
-    setLoading(false);
+    if(!silent) setLoading(false);
   };
   useEffect(()=>{load();},[]);  // charge une seule fois au montage
 
@@ -1093,78 +1108,115 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
 
   // ── Review List ──
   return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      {/* Full-screen edit drawer */}
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
+
+      {/* ═══ EDITING — position FIXED pour éviter le clipping par overflow:hidden ═══ */}
       {editing&&(
-      <div style={{position:"absolute",inset:0,zIndex:50,background:"var(--bg-shell)",display:"flex",flexDirection:"column",animation:"slideUp .25s ease"}}>
-        <div style={{padding:"14px 20px 12px",display:"flex",alignItems:"center",gap:12,flexShrink:0,borderBottom:`1px solid ${V.border}`}}>
-          <button onClick={()=>setEditing(null)} style={{background:V.chip,border:"none",cursor:"pointer",color:V.m,fontSize:18,width:34,height:34,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
+      <div style={{position:"fixed",inset:0,zIndex:999,background:"var(--bg-shell)",display:"flex",flexDirection:"column",animation:"slideUp .25s ease",direction:"rtl"}}>
+        {/* Header fixe */}
+        <div style={{padding:"14px 20px 12px",display:"flex",alignItems:"center",gap:12,flexShrink:0,borderBottom:`1px solid ${V.border}`,background:"var(--bg-shell)"}}>
+          <button onClick={()=>setEditing(null)} style={{background:V.chip,border:"none",cursor:"pointer",color:V.m,fontSize:18,width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>←</button>
           <div style={{flex:1}}>
             <div style={{color:V.h,fontWeight:800,fontSize:15}}>تعديل المحتوى</div>
             <div style={{color:V.d,fontSize:11,marginTop:1}}>{editing.flag} {editing.country} · {editing.type==="news"?"خبر":"مقال"}</div>
           </div>
-          <button onClick={saveEdit} style={{background:"linear-gradient(135deg,#2563EB,#7C3AED)",border:"none",cursor:"pointer",color:"#fff",fontWeight:700,fontSize:13,padding:"8px 16px",borderRadius:10,fontFamily:"inherit"}}>حفظ التعديل</button>
+          <button onClick={saveEdit} style={{background:"linear-gradient(135deg,#2563EB,#7C3AED)",border:"none",cursor:"pointer",color:"#fff",fontWeight:700,fontSize:13,padding:"10px 18px",borderRadius:10,fontFamily:"inherit",flexShrink:0}}>
+            حفظ ✓
+          </button>
         </div>
-        <div style={{overflowY:"auto",flex:1,padding:"16px 20px 30px",display:"flex",flexDirection:"column",gap:14}}>
+
+        {/* Corps scrollable */}
+        <div style={{overflowY:"auto",flex:1,padding:"16px 20px",display:"flex",flexDirection:"column",gap:14}}>
+
+          {/* Champ commun : Titre */}
           <div>
-            <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>العنوان</div>
+            <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6,letterSpacing:.5}}>العنوان</div>
             <textarea value={editing.title||""} onChange={e=>setEditing({...editing,title:e.target.value})}
-              style={{width:"100%",minHeight:60,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:14,fontWeight:700,lineHeight:1.6,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+              style={{width:"100%",minHeight:72,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:14,fontWeight:700,lineHeight:1.6,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
           </div>
+
+          {/* NEWS fields */}
           {editing.type==="news"&&<>
             <div>
-              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>الملخص</div>
-              <textarea value={editing.summary||""} onChange={e=>setEditing({...editing,summary:e.target.value})}
-                style={{width:"100%",minHeight:90,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.7,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6,letterSpacing:.5}}>الملخص (body)</div>
+              <textarea value={editing.summary||editing.body||""} onChange={e=>setEditing({...editing,summary:e.target.value,body:e.target.value})}
+                style={{width:"100%",minHeight:100,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.75,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
             </div>
             <div>
-              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>التحليل</div>
+              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6,letterSpacing:.5}}>التحليل (analysis)</div>
               <textarea value={editing.analysis||""} onChange={e=>setEditing({...editing,analysis:e.target.value})}
-                style={{width:"100%",minHeight:90,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.7,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+                style={{width:"100%",minHeight:100,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.75,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
             </div>
             <div style={{display:"flex",gap:10}}>
               <div style={{flex:1}}>
                 <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>المصدر</div>
                 <input value={editing.source||""} onChange={e=>setEditing({...editing,source:e.target.value})}
-                  style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"9px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+                  style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
               </div>
               <div style={{flex:1}}>
                 <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>التصنيف</div>
-                <input value={editing.category||""} onChange={e=>setEditing({...editing,category:e.target.value})}
-                  style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"9px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+                <select value={editing.category||""} onChange={e=>setEditing({...editing,category:e.target.value})}
+                  style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}>
+                  {["اقتصاد","سياسة","تقنية","رياضة","صحة","ثقافة","عام"].map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
             </div>
-            <div style={{display:"flex",alignItems:"center",gap:10,background:V.bgInput,borderRadius:10,padding:"10px 14px",border:`1px solid ${V.border}`}}>
-              <span style={{color:V.m,fontSize:13}}>⚡ عاجل</span>
-              <label style={{marginRight:"auto",position:"relative",display:"inline-block",width:44,height:24,cursor:"pointer"}}>
-                <input type="checkbox" checked={!!editing.urgent} onChange={e=>setEditing({...editing,urgent:e.target.checked})} style={{opacity:0,width:0,height:0}}/>
-                <span style={{position:"absolute",inset:0,background:editing.urgent?"#2563EB":"var(--bg-chip)",borderRadius:12,transition:"background .2s"}}/>
-                <span style={{position:"absolute",top:3,right:editing.urgent?3:"auto",left:editing.urgent?"auto":3,width:18,height:18,background:"#fff",borderRadius:"50%",transition:"all .2s",boxShadow:"0 1px 4px rgba(0,0,0,.3)"}}/>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:V.bgInput,borderRadius:10,padding:"12px 14px",border:`1px solid ${V.border}`}}>
+              <span style={{color:V.m,fontSize:13,fontWeight:600}}>⚡ تحديد كخبر عاجل</span>
+              <label style={{position:"relative",display:"inline-block",width:48,height:26,cursor:"pointer",flexShrink:0}}>
+                <input type="checkbox" checked={!!editing.urgent} onChange={e=>setEditing({...editing,urgent:e.target.checked})} style={{opacity:0,width:0,height:0,position:"absolute"}}/>
+                <span style={{position:"absolute",inset:0,background:editing.urgent?"#2563EB":"var(--bg-chip)",borderRadius:13,transition:"background .2s"}}/>
+                <span style={{position:"absolute",top:3,width:20,height:20,background:"#fff",borderRadius:"50%",transition:"right .2s",right:editing.urgent?3:25,boxShadow:"0 1px 4px rgba(0,0,0,.3)"}}/>
               </label>
             </div>
           </>}
+
+          {/* ARTICLE fields */}
           {editing.type==="article"&&<>
             <div>
-              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>نص المقال</div>
+              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6,letterSpacing:.5}}>نص المقال (body)</div>
               <textarea value={editing.body||""} onChange={e=>setEditing({...editing,body:e.target.value})}
-                style={{width:"100%",minHeight:180,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.8,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+                style={{width:"100%",minHeight:200,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.85,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
             </div>
             <div>
-              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>الكاتب</div>
-              <input value={editing.author||""} onChange={e=>setEditing({...editing,author:e.target.value})}
-                style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"9px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6,letterSpacing:.5}}>التحليل (analysis)</div>
+              <textarea value={editing.analysis||""} onChange={e=>setEditing({...editing,analysis:e.target.value})}
+                style={{width:"100%",minHeight:100,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.75,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <div style={{flex:1}}>
+                <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>الكاتب</div>
+                <input value={editing.author||""} onChange={e=>setEditing({...editing,author:e.target.value})}
+                  style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>وقت القراءة</div>
+                <input value={editing.readTime||""} onChange={e=>setEditing({...editing,readTime:e.target.value})}
+                  style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+              </div>
             </div>
             <div>
-              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>رابط الصورة</div>
+              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>رابط الصورة (image)</div>
               <input value={editing.image||""} onChange={e=>setEditing({...editing,image:e.target.value})}
-                style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"9px 12px",color:V.h,fontSize:12,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr"}}/>
+                style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:12,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr"}}/>
+              {editing.image&&<img src={editing.image} alt="" style={{width:"100%",height:100,objectFit:"cover",borderRadius:8,marginTop:8}} onError={e=>e.target.style.display="none"}/>}
             </div>
             <div>
-              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>الوسوم (مفصولة بفاصلة)</div>
-              <input value={(editing.tags||[]).join(",")} onChange={e=>setEditing({...editing,tags:e.target.value.split(",").map(t=>t.trim())})}
-                style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"9px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>الوسوم (tags) — مفصولة بفاصلة</div>
+              <input value={(editing.tags||[]).join(",")} onChange={e=>setEditing({...editing,tags:e.target.value.split(",").map(t=>t.trim()).filter(Boolean)})}
+                style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
             </div>
           </>}
+
+          {/* Boutons d'action dans l'éditeur */}
+          <div style={{display:"flex",gap:10,paddingTop:8,paddingBottom:20}}>
+            <button onClick={()=>setEditing(null)} style={{flex:1,padding:"12px",borderRadius:12,border:`1px solid ${V.border}`,cursor:"pointer",background:V.bgInput,color:V.m,fontWeight:600,fontSize:14,fontFamily:"inherit"}}>
+              إلغاء
+            </button>
+            <button onClick={()=>{saveEdit();}} style={{flex:2,padding:"12px",borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#2563EB,#7C3AED)",color:"#fff",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>
+              ✓ حفظ التعديلات
+            </button>
+          </div>
         </div>
       </div>
       )}
@@ -1297,8 +1349,28 @@ function App(){
   // Detect if running as PWA — full screen no phone shell
   const pwa=isStandalone();
 
-  const doLoadNews=async()=>{setLoadN(true);const d=await fetchNews(wh1);setNews(d);setLastN(new Date());setLoadN(false);};
-  const doLoadAn=async()=>{setLoadA(true);const d=await fetchAnalyses(wh2);setAnalyses(d);setLastA(new Date());setLoadA(false);};
+  // Merge helper — fusionne par id, les nouveaux items s'ajoutent, les existants se mettent à jour
+  const mergeById=(prev,incoming)=>{
+    if(!incoming||!incoming.length) return prev;
+    const map=new Map(prev.map(i=>[String(i.id),i]));
+    incoming.forEach(i=>map.set(String(i.id),i));
+    return Array.from(map.values());
+  };
+
+  const doLoadNews=async()=>{
+    setLoadN(true);
+    const d=await fetchNews(wh1);
+    setNews(prev=>mergeById(prev,d));
+    setLastN(new Date());
+    setLoadN(false);
+  };
+  const doLoadAn=async()=>{
+    setLoadA(true);
+    const d=await fetchAnalyses(wh2);
+    setAnalyses(prev=>mergeById(prev,d));
+    setLastA(new Date());
+    setLoadA(false);
+  };
   useEffect(()=>{doLoadNews();doLoadAn();},[wh1,wh2]);
   useEffect(()=>{
     const t1=setInterval(doLoadNews,ri*1000);
