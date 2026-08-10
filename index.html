@@ -253,17 +253,32 @@ const CATI={اقتصاد:"📈",تقنية:"💡",سياسة:"🏛️",رياض�
 // ══════════════════════════════════════════════
 function parseN8NResponse(data){
   if(!data) return null;
-  // [{json:{...}},...] — n8n "Last Node" wrapping
-  if(Array.isArray(data)&&data.length>0&&data[0]?.json!==undefined){
-    const u=data.map(i=>i.json);
-    if(Array.isArray(u[0])) return u[0]; // [{json:[...]}]
-    return u;                             // [{json:{...}},...]
+  // Cas 1: Array direct d'objets
+  if(Array.isArray(data) && data.length > 0){
+    return data;
   }
-  if(Array.isArray(data)) return data;   // [{id,...},...]  propre
-  if(data.id!==undefined) return [data]; // {id,...} objet seul
-  const arr=data.items||data.data||data.news||data.analyses||data.results||data.content;
-  if(Array.isArray(arr)) return arr;
-  if(data.json) return Array.isArray(data.json)?data.json:[data.json];
+  
+  // Cas 2: Objet avec items/data/news/etc.
+  if(typeof data === "object" && data !== null){
+    const arr = data.items || data.data || data.news || data.analyses || data.results || data.content;
+    if(Array.isArray(arr) && arr.length > 0){
+      return arr;
+    }
+    // Si l'objet a un id, c'est un item unique
+    if(data.id !== undefined) return [data];
+    // Si l'objet a json (n8n wrapping)
+    if(data.json){
+      return Array.isArray(data.json) ? data.json : [data.json];
+    }
+  }
+  
+  // Cas 3: n8n Last Node wrapping [{json:{...}}]
+  if(Array.isArray(data) && data.length > 0 && data[0]?.json !== undefined){
+    const u = data.map(i => i.json);
+    if(Array.isArray(u[0])) return u[0];
+    return u;
+  }
+  
   return null;
 }
 
@@ -1003,42 +1018,59 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
   const [lastLoaded,setLastLoaded]=useState(null);
 
   const load=async(silent=false)=>{
-    if(!silent) setLoading(true);
-    try{
-      if(!wh3||wh3.includes("your-app")){
-        // Mode mock — merge avec items existants non traités
-        setItems(prev=>{
-          const existingIds=new Set(prev.map(i=>i.id));
-          const newItems=MOCK_PENDING.filter(i=>!existingIds.has(i.id));
-          return [...prev, ...newItems];
-        });
-        setLastLoaded(new Date());
-        setLoading(false);
-        return;
-      }
-      const res=await fetch(wh3,{method:"GET",headers:{"Accept":"application/json"}});
-      if(!res.ok) throw new Error("HTTP "+res.status);
-      const raw=await res.json();
-      const parsed=parseN8N(raw);
-      if(parsed&&parsed.length>0){
-        // ══ ACCUMULATION — ne jamais écraser les items non traités ══
-        setItems(prev=>{
-          const doneSet=new Set(Object.keys(doneIds)); // déjà traités
-          const existingIds=new Set(prev.map(i=>i.id));
-          // Garder les items existants non traités
-          const kept=prev.filter(i=>!doneSet.has(i.id));
-          // Ajouter seulement les nouveaux items inconnus
-          const incoming=parsed.filter(i=>!existingIds.has(i.id)&&!doneSet.has(i.id));
-          return [...kept,...incoming];
-        });
-      }
+  if(!silent) setLoading(true);
+  try{
+    if(!wh3||wh3.includes("your-app")){
+      setItems(prev=>{
+        const existingIds=new Set(prev.map(i=>i.id));
+        const newItems=MOCK_PENDING.filter(i=>!existingIds.has(i.id));
+        return [...prev, ...newItems];
+      });
       setLastLoaded(new Date());
-    }catch(e){
-      console.warn("ReviewScreen load error:",e.message);
-      if(!silent) setItems(prev=>prev.length>0?prev:MOCK_PENDING);
+      setLoading(false);
+      return;
     }
-    if(!silent) setLoading(false);
-  };
+    const res=await fetch(wh3,{method:"GET",headers:{"Accept":"application/json"}});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const raw=await res.json();
+    const parsed=parseN8N(raw);
+    if(parsed&&parsed.length>0){
+      // MAPPER LES CHAMPS DE N8N VERS LE FORMAT ATTENDU
+      const mappedItems = parsed.map(item => ({
+        id: item.id,
+        type: item.type || "news",
+        country: item.country || "",
+        countryCode: item.countryCode || "",
+        flag: item.flag || "",
+        category: item.category || "عام",
+        title: item.title || "",
+        body: item.body || "",
+        summary: item.summary || item.body || "",
+        analysis: item.analysis || item.Analyse || "",  // ← MAP Analyse → analysis
+        source: item.source || item.author || "",
+        author: item.author || "",
+        readTime: item.readTime || "3 دقائق",
+        publishedAt: item.publishedAt || new Date().toISOString(),
+        tags: typeof item.tags === "string" ? JSON.parse(item.tags) : (item.tags || []),
+        image: item.image || "",
+        urgent: item.urgent ?? false,
+        validation: item.validation ?? item["Sent Validation"] ?? item["Validation"] ?? null,
+      }));
+      setItems(prev=>{
+        const doneSet=new Set(Object.keys(doneIds));
+        const existingIds=new Set(prev.map(i=>i.id));
+        const kept=prev.filter(i=>!doneSet.has(i.id));
+        const incoming=mappedItems.filter(i=>!existingIds.has(i.id)&&!doneSet.has(i.id));
+        return [...kept,...incoming];
+      });
+    }
+    setLastLoaded(new Date());
+  }catch(e){
+    console.warn("ReviewScreen load error:",e.message);
+    if(!silent) setItems(prev=>prev.length>0?prev:MOCK_PENDING);
+  }
+  if(!silent) setLoading(false);
+};
   useEffect(()=>{load();},[]);  // charge une seule fois au montage
 
   const sendDecision=async(item,approved)=>{
@@ -1046,27 +1078,27 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
 
     // Payload aligné sur les colonnes Supabase
     // n8n fera UPDATE WHERE id = payload.id
-    const payload={
-      id:           item.id,          // uuid Supabase — clé primaire
-      validation:   approved,          // true / false → colonne validation
-      validated_at: new Date().toISOString(),
-      // Champs modifiables par l'admin → colonnes Supabase
-      content:{
-        title:       item.title       || null,
-        body:        item.summary     || item.body || null,
-        analysis:    item.analysis    || null,
-        category:    item.category    || null,
-        urgent:      item.urgent      ?? false,
-        source:      item.source      || null,
-        author:      item.author      || null,
-        readTime:    item.readTime    || null,
-        tags:        item.tags        || [],
-        image:       item.image       || null,
-        country:     item.country     || null,
-        countryCode: item.countryCode || null,
-        flag:        item.flag        || null,
-      }
-    };
+      const payload={
+    id: item.id,
+    validation: approved,
+    validated_at: new Date().toISOString(),
+    content:{
+      title: item.title || null,
+      body: item.body || null,
+      summary: item.summary || null,
+      analysis: item.analysis || null,
+      category: item.category || null,
+      urgent: item.urgent ?? false,
+      source: item.source || null,
+      author: item.author || null,
+      readTime: item.readTime || null,
+      tags: item.tags || [],
+      image: item.image || null,
+      country: item.country || null,
+      countryCode: item.countryCode || null,
+      flag: item.flag || null,
+    }
+  };
     try{
       const actionUrl=wh4&&!wh4.includes("your-app")?wh4:null;
       if(actionUrl){
@@ -1526,7 +1558,7 @@ const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
 const isInStandaloneMode = window.navigator.standalone;
 if(isIOS && !isInStandaloneMode){
   setTimeout(()=>{
-    const iosBanner = document.getElementById('install-banner');
+    const iosBanner = document.getElementById('install-banner')
     const iosBtn = document.getElementById('install-btn');
     const iosSub = iosBanner.querySelector('.install-sub');
     iosSub.innerHTML = 'اضغط <strong style="color:#60A5FA">مشاركة</strong> ثم <strong style="color:#60A5FA">أضف إلى الشاشة الرئيسية</strong>';
