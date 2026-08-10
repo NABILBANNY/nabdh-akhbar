@@ -1139,12 +1139,12 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
   const col=code=>gc(code||"INTL");
 
   // ── Review List ──
-  return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
-
-      {/* ═══ EDITING — position FIXED pour éviter le clipping par overflow:hidden ═══ */}
-      {editing&&(
-      <div style={{position:"fixed",inset:0,zIndex:999,background:"var(--bg-shell)",display:"flex",flexDirection:"column",animation:"slideUp .25s ease",direction:"rtl"}}>
+  return (
+  <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"visible",position:"relative"}}>
+    
+    {/* ═══ EDITING — position FIXED ═══ */}
+    {editing && (
+      <div style={{position:"fixed",inset:0,zIndex:9999,background:"var(--bg-shell)",display:"flex",flexDirection:"column",animation:"slideUp .25s ease",direction:"rtl"}}>
         {/* Header fixe */}
         <div style={{padding:"14px 20px 12px",display:"flex",alignItems:"center",gap:12,flexShrink:0,borderBottom:`1px solid ${V.border}`,background:"var(--bg-shell)"}}>
           <button onClick={()=>setEditing(null)} style={{background:V.chip,border:"none",cursor:"pointer",color:V.m,fontSize:18,width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>←</button>
