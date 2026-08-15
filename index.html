@@ -246,7 +246,15 @@ function rgba(hex,a){
   return`rgba(${r},${g},${b},${a})`;
 }
 function gc(code){const accent=PC[code]||hc(code);return{accent,bg:rgba(accent,.08),border:rgba(accent,.3)};}
-const CATI={اقتصاد:"📈",تقنية:"💡",سياسة:"🏛️",مجتمع:"👨‍👩‍👦‍👦",صحة:"🏥",ثقافة:"🎭",عام:"📰"};
+const CATI = {
+  اقتصاد: "📈",
+  تقنية: "💡",
+  سياسة: "🏛️",
+  مجتمع: "👨‍👩‍👦‍👦",
+  صحة: "🏥",
+  ثقافة: "🎭",
+  عام: "📰",
+};
 
 // ══════════════════════════════════════════════
 //  UNIVERSAL N8N PARSER
