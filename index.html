@@ -1156,7 +1156,7 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
                 <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>التصنيف</div>
                 <select value={editing.category||""} onChange={e=>setEditing({...editing,category:e.target.value})}
                   style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}>
-                  {["اقتصاد","سياسة","تقنية","رياضة","صحة","ثقافة","عام"].map(c=><option key={c} value={c}>{c}</option>)}
+                  {["اقتصاد","سياسة","تقنية","مجتمع","صحة","ثقافة","عام"].map(c=><option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
