@@ -246,7 +246,7 @@ function rgba(hex,a){
   return`rgba(${r},${g},${b},${a})`;
 }
 function gc(code){const accent=PC[code]||hc(code);return{accent,bg:rgba(accent,.08),border:rgba(accent,.3)};}
-const CATI={اقتصاد:"📈",تقنية:"💡",سياسة:"🏛️",رياضة:"⚽",صحة:"🏥",ثقافة:"🎭",عام:"📰"};
+const CATI={اقتصاد:"📈",تقنية:"💡",سياسة:"🏛️",مجتمع:"👨‍👩‍👦‍👦",صحة:"🏥",ثقافة:"🎭",عام:"📰"};
 
 // ══════════════════════════════════════════════
 //  UNIVERSAL N8N PARSER
@@ -955,48 +955,7 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,s
 // ══════════════════════════════════════════════
 // MOCK_PENDING — reflète exactement les colonnes Supabase
 // (utilisé uniquement si wh3 n'est pas configuré)
-const MOCK_PENDING = [
-  {
-    id:"uuid-p1-supabase",        // uuid Supabase
-    type:"news",
-    country:"السعودية", countryCode:"SA", flag:"🇸🇦",
-    category:"اقتصاد",
-    title:"أرامكو تُعلن شراكة استراتيجية مع شركة تقنية أمريكية",
-    body:"أبرمت أرامكو السعودية اتفاقية تعاون مع إحدى كبرى شركات التقنية الأمريكية لتطوير منظومة إدارة البيانات في قطاع الطاقة باستخدام الذكاء الاصطناعي.",
-    summary:"أبرمت أرامكو السعودية اتفاقية تعاون مع إحدى كبرى شركات التقنية الأمريكية.",
-    analysis:"تُعدّ هذه الشراكة خطوةً استراتيجية تعكس توجّه أرامكو نحو الرقمنة الشاملة، في سياق المنافسة المتصاعدة على الريادة التقنية في قطاع الطاقة عالمياً.",
-    source:"رويترز", author:null, readTime:"3 دقائق",
-    publishedAt:new Date().toISOString(), tags:["اقتصاد","تقنية"],
-    image:null, urgent:false, views:"0", validation:null
-  },
-  {
-    id:"uuid-p2-supabase",
-    type:"news",
-    country:"مصر", countryCode:"EG", flag:"🇪🇬",
-    category:"سياسة",
-    title:"مصر تستضيف قمة إقليمية لبحث ملفات الأمن الغذائي",
-    body:"تستضيف القاهرة قمةً إقليمية تجمع ممثلي 14 دولة عربية وأفريقية لبحث تحديات الأمن الغذائي.",
-    summary:"تستضيف القاهرة قمةً إقليمية تجمع ممثلي 14 دولة عربية وأفريقية.",
-    analysis:"يكشف هذا الحدث عن دور مصر المتنامي كوسيط إقليمي في قضايا الاستقرار الغذائي.",
-    source:"الأهرام", author:null, readTime:"2 دقائق",
-    publishedAt:new Date().toISOString(), tags:["سياسة","أمن غذائي"],
-    image:null, urgent:true, views:"0", validation:null
-  },
-  {
-    id:"uuid-p3-supabase",
-    type:"article",
-    country:"المغرب", countryCode:"MA", flag:"🇲🇦",
-    category:"سياسة",
-    title:"الرهان الأفريقي للمغرب: بين الطموح والواقع",
-    body:"يسعى المغرب بخطى ثابتة إلى ترسيخ حضوره في القارة الأفريقية.\n\nتتجلى هذه الاستراتيجية في التوسع الاقتصادي لشركات مغربية كبرى.\n\nغير أن هذا الطموح يواجه منافسة شرسة من قوى إقليمية ودولية.",
-    summary:"يسعى المغرب إلى ترسيخ حضوره في القارة الأفريقية.",
-    analysis:"يُمثّل المغرب نموذجاً فريداً في الدبلوماسية الاقتصادية الأفريقية.",
-    author:"د. كريم العمراني", readTime:"6 دقائق",
-    publishedAt:new Date().toISOString(), tags:["المغرب","أفريقيا","دبلوماسية"],
-    image:"https://images.unsplash.com/photo-1539020140153-e479b8c22e70?w=800&q=80",
-    source:"تحليل خاص", urgent:false, views:"0", validation:null
-  },
-];
+const MOCK_PENDING = [];
 
 function ReviewScreen({wh3,wh4,dark,onBack}){
   const [items,setItems]=useState([]);
