@@ -112,10 +112,6 @@
     .install-btn{background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff;border:none;padding:10px 18px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;}
     .install-close{background:none;border:none;color:var(--txt-x);font-size:20px;cursor:pointer;padding:4px;flex-shrink:0;line-height:1;}
 
-    /* Safe area padding for PWA */
-    .safe-top{padding-top:env(safe-area-inset-top,10px);}
-    .safe-bottom{padding-bottom:env(safe-area-inset-bottom,0px);}
-
     /* Theme toggle switch */
     .theme-toggle{position:relative;width:52px;height:28px;flex-shrink:0;}
     .theme-toggle input{opacity:0;width:0;height:0;position:absolute;}
@@ -245,49 +241,88 @@ function rgba(hex,a){
   const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
   return`rgba(${r},${g},${b},${a})`;
 }
-function gc(code){const accent=PC[code]||hc(code);return{accent,bg:rgba(accent,.08),border:rgba(accent,.3)};}
-const CATI = {
-  اقتصاد: "📈",
-  تقنية: "💡",
-  سياسة: "🏛️",
-  مجتمع: "👨‍👩‍👦‍👦",
-  صحة: "🏥",
-  ثقافة: "🎭",
-  عام: "📰",
-};
+function gc(code){const accent=PC[code]||hc(code||"XX");return{accent,bg:rgba(accent,.08),border:rgba(accent,.3)};}
+const CATI={اقتصاد:"📈",تقنية:"💡",سياسة:"🏛️",رياضة:"⚽",صحة:"🏥",ثقافة:"🎭",عام:"📰"};
 
 // ══════════════════════════════════════════════
 //  UNIVERSAL N8N PARSER
 // ══════════════════════════════════════════════
 function parseN8NResponse(data){
   if(!data) return null;
-  // Cas 1: Array direct d'objets
   if(Array.isArray(data) && data.length > 0){
+    if(data[0]?.json !== undefined) return data.map(i => i.json);
     return data;
   }
-  
-  // Cas 2: Objet avec items/data/news/etc.
   if(typeof data === "object" && data !== null){
     const arr = data.items || data.data || data.news || data.analyses || data.results || data.content;
-    if(Array.isArray(arr) && arr.length > 0){
-      return arr;
-    }
-    // Si l'objet a un id, c'est un item unique
+    if(Array.isArray(arr) && arr.length > 0) return arr;
     if(data.id !== undefined) return [data];
-    // Si l'objet a json (n8n wrapping)
-    if(data.json){
-      return Array.isArray(data.json) ? data.json : [data.json];
-    }
+    if(data.json) return Array.isArray(data.json) ? data.json : [data.json];
   }
-  
-  // Cas 3: n8n Last Node wrapping [{json:{...}}]
-  if(Array.isArray(data) && data.length > 0 && data[0]?.json !== undefined){
-    const u = data.map(i => i.json);
-    if(Array.isArray(u[0])) return u[0];
-    return u;
-  }
-  
   return null;
+}
+
+// ══════════════════════════════════════════════
+//  NORMALISE — aligne les champs Supabase → App
+//  Gère toutes les variantes de noms de colonnes
+// ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+//  CALCUL TEMPS RELATIF — recalculé à chaque refresh
+// ══════════════════════════════════════════════
+function relativeTime(isoDate){
+  if(!isoDate) return "";
+  const diff = Math.floor((Date.now() - new Date(isoDate)) / 60000);
+  if(diff < 1)         return "الآن";
+  if(diff < 60)        return `منذ ${diff} دقيقة`;
+  if(diff < 1440)      return `منذ ${Math.floor(diff/60)} ساعة`;
+  if(diff < 10080)     return `منذ ${Math.floor(diff/1440)} يوم`;
+  return new Date(isoDate).toLocaleDateString("ar-EG",{day:"numeric",month:"long"});
+}
+
+function normalizeItem(raw){
+  // Tags
+  let tags = raw.tags || raw.Tags || [];
+  if(typeof tags === "string"){
+    try{ tags = JSON.parse(tags); }
+    catch(e){ tags = tags.split(",").map(t=>t.trim()).filter(Boolean); }
+  }
+
+  // publishedAt : created_at en priorité
+  const pubDate = raw.created_at || raw.publishedAt || raw.published_at || new Date().toISOString();
+
+  // type
+  const type = raw.type || raw.Type ||
+    ((raw.body||"").length > 400 || raw.author ? "article" : "news");
+
+  return {
+    id:          raw.id,
+    type,
+    country:     raw.country     || raw.Country     || "",
+    countryCode: raw.countryCode || raw.CountryCode || "INTL",
+    flag:        raw.flag        || raw.Flag        || "🌍",
+    title:       (raw.title      || raw.Title       || "").trim(),
+    summary:     raw.summary     || raw.body        || raw.Body   || raw.content || "",
+    body:        raw.body        || raw.Body        || raw.summary|| raw.content || "",
+    analysis:    type === "news" ? (raw.analysis || raw.Analyse || raw.Analysis || "") : "",
+    category:    raw.category    || raw.Category    || "عام",
+    source:      raw.source      || raw.Source      || "",
+    author:      raw.author      || raw.Author      || "",
+    url:         raw.URL         || raw.url         || "",
+    readTime:    raw.readTime    || raw.ReadTime     || raw.read_time || "",
+    publishedAt: pubDate,
+    tags,
+    image:       raw.image       || raw.Image       || raw.thumbnail || "",
+    time:        relativeTime(pubDate),  // calculé ici, recalculé à chaque refresh
+    urgent:      raw.urgent      || raw.Urgent      || false,
+    views:       raw.views       || raw.Views       || "0",
+    validation:  raw.Validation  || raw.validation  || false,
+    published:   raw.Published   || raw.published   || false,
+  };
+}
+
+// Recalcule time sur les items déjà chargés (appelé à chaque refresh)
+function refreshTimes(items){
+  return items.map(i=>({...i, time: relativeTime(i.publishedAt)}));
 }
 
 async function fetchNews(url){
@@ -296,7 +331,7 @@ async function fetchNews(url){
     const res=await fetch(url,{method:"GET",headers:{"Accept":"application/json"}});
     if(!res.ok) throw new Error("HTTP "+res.status);
     const parsed=parseN8NResponse(await res.json());
-    return parsed&&parsed.length>0?parsed:MOCK_NEWS;
+    return parsed&&parsed.length>0 ? parsed.map(normalizeItem) : MOCK_NEWS;
   }catch(e){ console.warn("fetchNews →",e.message); return MOCK_NEWS; }
 }
 async function fetchAnalyses(url){
@@ -305,7 +340,7 @@ async function fetchAnalyses(url){
     const res=await fetch(url,{method:"GET",headers:{"Accept":"application/json"}});
     if(!res.ok) throw new Error("HTTP "+res.status);
     const parsed=parseN8NResponse(await res.json());
-    return parsed&&parsed.length>0?parsed:MOCK_ANALYSES;
+    return parsed&&parsed.length>0 ? parsed.map(normalizeItem) : MOCK_ANALYSES;
   }catch(e){ console.warn("fetchAnalyses →",e.message); return MOCK_ANALYSES; }
 }
 
@@ -321,11 +356,7 @@ async function genComment(title,summary){
   }catch(e){return"تعذّر الاتصال بمحرك التحليل.";}
 }
 
-// ══════════════════════════════════════════════
-//  DETECT PWA / MOBILE
-// ══════════════════════════════════════════════
 const isStandalone=()=>window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone;
-const isMobile=()=>/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 // ══════════════════════════════════════════════
 //  SHARED COMPONENTS
@@ -337,10 +368,9 @@ function Clock(){
 }
 
 function StatusBar(){
-  const pwa=isStandalone();
-  if(pwa) return null; // OS shows real status bar in standalone
+  if(isStandalone()) return null;
   return(
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 20px 0",color:"#E2E8F0",fontSize:12,fontWeight:600,flexShrink:0}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 20px 0",color:"var(--txt-s)",fontSize:12,fontWeight:600,flexShrink:0}}>
       <Clock/><div style={{display:"flex",gap:6}}><span>📶</span><span>🔋</span></div>
     </div>
   );
@@ -357,7 +387,7 @@ function CountryTab({label,flag,active,onClick,accent,count}){
       </button>
       {count>0&&<div style={{position:"absolute",top:-4,left:-4,background:accent,color:"var(--bg-input)",
         fontSize:9,fontWeight:800,width:16,height:16,borderRadius:"50%",
-        display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid #0D1117"}}>{count}</div>}
+        display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid var(--bg-shell)"}}>{count}</div>}
     </div>
   );
 }
@@ -368,7 +398,7 @@ function CountryTab({label,flag,active,onClick,accent,count}){
 function NewsCard({news,onOpen,onSave,saved}){
   const col=gc(news.countryCode);
   return(
-    <div style={{background:"var(--bg-card)",border:"1px solid #1E293B",borderRadius:18,padding:"15px 17px",marginBottom:13,position:"relative",overflow:"hidden"}}>
+    <div style={{background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:18,padding:"15px 17px",marginBottom:13,position:"relative",overflow:"hidden"}}>
       <div style={{position:"absolute",right:0,top:0,bottom:0,width:4,background:col.accent,borderRadius:"0 18px 18px 0"}}/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:9}}>
         <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
@@ -379,9 +409,18 @@ function NewsCard({news,onOpen,onSave,saved}){
         <button onClick={e=>{e.stopPropagation();onSave(news);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:17,padding:"0 4px",color:saved?"#F59E0B":"var(--border2)",flexShrink:0}}>🔖</button>
       </div>
       <h3 onClick={()=>onOpen(news)} style={{color:"var(--txt-p)",fontSize:14.5,fontWeight:700,margin:"0 0 7px",lineHeight:1.55,cursor:"pointer"}}>{news.title}</h3>
-      <p onClick={()=>onOpen(news)} style={{color:"var(--txt-m)",fontSize:13,lineHeight:1.7,margin:"0 0 11px",cursor:"pointer"}}>{news.summary}</p>
+      <p onClick={()=>onOpen(news)} style={{color:"var(--txt-m)",fontSize:13,lineHeight:1.7,margin:"0 0 10px",cursor:"pointer"}}>{news.summary}</p>
+      {/* Tags */}
+      {news.tags&&news.tags.length>0&&(
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+          {news.tags.slice(0,3).map(t=><span key={t} style={{background:col.bg,color:col.accent,fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:20,border:`1px solid ${col.border}`}}>#{t}</span>)}
+        </div>
+      )}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{color:"var(--txt-d)",fontSize:12,fontWeight:600}}>📰 {news.source}</span>
+        <div style={{display:"flex",flexDirection:"column",gap:2}}>
+          <span style={{color:"var(--txt-d)",fontSize:12,fontWeight:600}}>📰 {news.source}</span>
+          {news.author&&<span style={{color:"var(--txt-x)",fontSize:11}}>✍️ {news.author}</span>}
+        </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{color:"var(--txt-x)",fontSize:11}}>{news.time}</span>
           <span onClick={()=>onOpen(news)} style={{background:col.bg,border:`1px solid ${col.border}`,borderRadius:8,padding:"3px 9px",color:col.accent,fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 تحليل</span>
@@ -397,16 +436,38 @@ function NewsDrawer({news,onClose}){
   const [note,setNote]=useState("");
   const [submitted,setSubmitted]=useState(false);
   const col=gc(news?.countryCode||"INTL");
+
   useEffect(()=>{
     if(!news)return;
-    setAiText("");setNote("");setSubmitted(false);setAiLoading(true);
-    genComment(news.title,news.summary).then(t=>setAiText(t)).catch(()=>setAiText("تعذّر الاتصال.")).finally(()=>setAiLoading(false));
+    setNote("");setSubmitted(false);
+
+    // ── Priorité 1 : analyse déjà stockée (Supabase via n8n) ──
+    const stored = news.analysis || news.Analyse || "";
+    if(stored.trim()){
+      setAiText(stored);
+      setAiLoading(false);
+      return;
+    }
+
+    // ── Priorité 2 : générer via Claude AI uniquement si vide ──
+    setAiText("");setAiLoading(true);
+    genComment(news.title, news.summary||news.body||"")
+      .then(t=>setAiText(t))
+      .catch(()=>setAiText("تعذّر الاتصال."))
+      .finally(()=>setAiLoading(false));
   },[news?.id]);
+
   if(!news)return null;
+
+  // Label du bloc analyse : source selon l'origine
+  const hasStoredAnalysis = !!(news.analysis||news.Analyse||"").trim();
+  const analysisLabel = hasStoredAnalysis ? "التحليل السياسي" : "تحليل Claude AI";
+  const analysisIcon  = hasStoredAnalysis ? "🏛️" : "🤖";
+
   return(
     <>
       <div onClick={onClose} style={{position:"absolute",inset:0,background:"var(--overlay)",zIndex:10,backdropFilter:"blur(4px)"}}/>
-      <div style={{position:"absolute",bottom:0,left:0,right:0,zIndex:20,background:"var(--bg-card2)",borderRadius:"22px 22px 0 0",border:"1px solid #1E293B",borderBottom:"none",maxHeight:"80%",display:"flex",flexDirection:"column",animation:"slideUp .28s cubic-bezier(.32,1,.23,1)"}}>
+      <div style={{position:"absolute",bottom:0,left:0,right:0,zIndex:20,background:"var(--bg-card2)",borderRadius:"22px 22px 0 0",border:"1px solid var(--border)",borderBottom:"none",maxHeight:"80%",display:"flex",flexDirection:"column",animation:"slideUp .28s cubic-bezier(.32,1,.23,1)"}}>
         <div style={{display:"flex",justifyContent:"center",padding:"11px 0 0"}}><div style={{width:38,height:4,background:"var(--border2)",borderRadius:2}}/></div>
         <div style={{padding:"10px 20px 0"}}>
           <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
@@ -420,12 +481,21 @@ function NewsDrawer({news,onClose}){
         <div style={{overflowY:"auto",flex:1,padding:"0 20px 28px"}}>
           <div style={{marginTop:14,background:"var(--bg-card)",borderRadius:15,padding:15,border:`1px solid ${col.border}`}}>
             <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:11}}>
-              <div style={{width:26,height:26,background:col.bg,border:`1px solid ${col.border}`,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🤖</div>
-              <span style={{color:col.accent,fontWeight:700,fontSize:13}}>تحليل Claude AI</span>
-              {aiLoading&&<div style={{width:13,height:13,border:`2px solid ${col.accent}33`,borderTop:`2px solid ${col.accent}`,borderRadius:"50%",animation:"spin .8s linear infinite",marginRight:"auto"}}/>}
+              <div style={{width:26,height:26,background:col.bg,border:`1px solid ${col.border}`,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>{analysisIcon}</div>
+              <span style={{color:col.accent,fontWeight:700,fontSize:13}}>{analysisLabel}</span>
+              {/* Badge "validé" si l'analyse vient de Supabase */}
+              {hasStoredAnalysis&&(
+                <span style={{marginRight:"auto",background:"rgba(34,197,94,.12)",border:"1px solid rgba(34,197,94,.3)",borderRadius:20,padding:"2px 8px",color:"#22C55E",fontSize:10,fontWeight:700}}>✓ معتمد</span>
+              )}
+              {/* Spinner uniquement si génération AI en cours */}
+              {aiLoading&&!hasStoredAnalysis&&(
+                <div style={{width:13,height:13,border:`2px solid ${col.accent}33`,borderTop:`2px solid ${col.accent}`,borderRadius:"50%",animation:"spin .8s linear infinite",marginRight:"auto"}}/>
+              )}
             </div>
-            {aiLoading?[100,82,66].map((w,i)=><div key={i} style={{height:13,background:"var(--bg-chip)",borderRadius:5,width:`${w}%`,marginBottom:8,animation:"pulse 1.4s ease-in-out infinite",animationDelay:`${i*.18}s`}}/>)
-              :<p style={{color:"var(--txt-s)",fontSize:13.5,lineHeight:1.85,margin:0}}>{aiText}</p>}
+            {aiLoading&&!hasStoredAnalysis
+              ? [100,82,66].map((w,i)=><div key={i} style={{height:13,background:"var(--bg-chip)",borderRadius:5,width:`${w}%`,marginBottom:8,animation:"pulse 1.4s ease-in-out infinite",animationDelay:`${i*.18}s`}}/>)
+              : <p style={{color:"var(--txt-s)",fontSize:13.5,lineHeight:1.85,margin:0}}>{aiText}</p>
+            }
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8,margin:"14px 0"}}>
             <div style={{flex:1,height:1,background:"var(--bg-chip)"}}/><span style={{color:"var(--txt-x)",fontSize:12}}>تعليقك</span><div style={{flex:1,height:1,background:"var(--bg-chip)"}}/>
@@ -438,7 +508,7 @@ function NewsDrawer({news,onClose}){
           ):(
             <>
               <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="شاركنا رأيك..."
-                style={{width:"100%",minHeight:80,background:"var(--bg-card)",border:"1px solid #1E293B",borderRadius:13,padding:"11px 13px",color:"#E2E8F0",fontSize:13.5,lineHeight:1.7,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}}/>
+                style={{width:"100%",minHeight:80,background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:13,padding:"11px 13px",color:"var(--txt-p)",fontSize:13.5,lineHeight:1.7,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}}/>
               <button onClick={()=>note.trim()&&setSubmitted(true)} disabled={!note.trim()}
                 style={{marginTop:9,width:"100%",padding:12,borderRadius:13,border:"none",cursor:note.trim()?"pointer":"not-allowed",
                   background:note.trim()?`linear-gradient(135deg,${col.accent},${col.accent}cc)`:"var(--bg-chip)",
@@ -463,7 +533,7 @@ function ArticleReader({article,onClose}){
     <div style={{position:"absolute",inset:0,zIndex:40,background:"var(--bg-input)",display:"flex",flexDirection:"column",animation:"slideUp .3s cubic-bezier(.32,1,.23,1)"}}>
       <div style={{position:"relative",height:200,flexShrink:0,overflow:"hidden",background:"var(--bg-card)"}}>
         <img src={article.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:.75}} onError={e=>{e.target.style.display="none";}}/>
-        <div style={{position:"absolute",inset:0,background:`linear-gradient(to top, #0D1117 0%, rgba(13,17,23,.4) 60%, transparent 100%)`}}/>
+        <div style={{position:"absolute",inset:0,background:`linear-gradient(to top, var(--bg-shell) 0%, rgba(13,17,23,.4) 60%, transparent 100%)`}}/>
         <button onClick={onClose} style={{position:"absolute",top:14,right:16,background:"rgba(0,0,0,.6)",backdropFilter:"blur(8px)",border:"1px solid #334155",borderRadius:12,width:38,height:38,cursor:"pointer",color:"#E2E8F0",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
         <div style={{position:"absolute",top:14,left:16,background:`${col.accent}22`,backdropFilter:"blur(8px)",borderRadius:10,padding:"4px 10px",border:`1px solid ${col.border}`,display:"flex",alignItems:"center",gap:5}}>
           <span style={{fontSize:16}}>{article.flag}</span><span style={{color:col.accent,fontSize:12,fontWeight:700}}>{article.country}</span>
@@ -474,10 +544,10 @@ function ArticleReader({article,onClose}){
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"0 20px 30px"}}>
         <h1 style={{color:"var(--txt-h)",fontSize:18,fontWeight:800,lineHeight:1.5,margin:"16px 0 12px"}}>{article.title}</h1>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,paddingBottom:14,borderBottom:"1px solid #1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,paddingBottom:14,borderBottom:"1px solid var(--border)"}}>
           <div style={{width:34,height:34,background:`linear-gradient(135deg,${col.accent}44,${col.accent}11)`,border:`1px solid ${col.border}`,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>✍️</div>
           <div style={{flex:1}}>
-            <div style={{color:"#E2E8F0",fontSize:13,fontWeight:700}}>{article.author}</div>
+            <div style={{color:"var(--txt-p)",fontSize:13,fontWeight:700}}>{article.author}</div>
             <div style={{color:"var(--txt-x)",fontSize:11,marginTop:1}}>{date} · {article.readTime}</div>
           </div>
           <div style={{background:col.bg,border:`1px solid ${col.border}`,borderRadius:10,padding:"4px 10px",display:"flex",alignItems:"center",gap:4}}>
@@ -490,7 +560,7 @@ function ArticleReader({article,onClose}){
         <div style={{display:"flex",alignItems:"center",gap:8,margin:"18px 0 16px"}}>
           <div style={{flex:1,height:1,background:"var(--bg-chip)"}}/><span style={{color:col.accent,fontSize:13}}>✦</span><div style={{flex:1,height:1,background:"var(--bg-chip)"}}/>
         </div>
-        <div style={{background:"var(--bg-card)",borderRadius:16,padding:16,border:"1px solid #1E293B"}}>
+        <div style={{background:"var(--bg-card)",borderRadius:16,padding:16,border:"1px solid var(--border)"}}>
           <div style={{color:"var(--txt-m)",fontSize:12,fontWeight:700,marginBottom:12}}>💬 أضف تعليقك</div>
           {submitted?(
             <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.3)",borderRadius:12,padding:14,display:"flex",gap:10}}>
@@ -500,7 +570,7 @@ function ArticleReader({article,onClose}){
           ):(
             <>
               <textarea value={comment} onChange={e=>setComment(e.target.value)} placeholder="شاركنا رأيك في هذا التحليل..."
-                style={{width:"100%",minHeight:90,background:"var(--bg-input)",border:"1px solid #1E293B",borderRadius:12,padding:"11px 13px",color:"#E2E8F0",fontSize:13.5,lineHeight:1.7,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}}/>
+                style={{width:"100%",minHeight:90,background:"var(--bg-input)",border:"1px solid var(--border)",borderRadius:12,padding:"11px 13px",color:"var(--txt-p)",fontSize:13.5,lineHeight:1.7,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}}/>
               <button onClick={()=>comment.trim()&&setSubmitted(true)} disabled={!comment.trim()}
                 style={{marginTop:10,width:"100%",padding:12,borderRadius:12,border:"none",cursor:comment.trim()?"pointer":"not-allowed",
                   background:comment.trim()?`linear-gradient(135deg,${col.accent},${col.accent}cc)`:"var(--bg-chip)",
@@ -520,10 +590,10 @@ function AnalysisCard({article,onClick}){
   const col=gc(article.countryCode);
   const date=new Date(article.publishedAt).toLocaleDateString("ar-EG",{day:"numeric",month:"long"});
   return(
-    <div onClick={()=>onClick(article)} style={{background:"var(--bg-card)",border:"1px solid #1E293B",borderRadius:20,overflow:"hidden",marginBottom:16,cursor:"pointer"}}>
+    <div onClick={()=>onClick(article)} style={{background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:20,overflow:"hidden",marginBottom:16,cursor:"pointer"}}>
       <div style={{position:"relative",height:160,overflow:"hidden",background:"var(--bg-input)"}}>
         <img src={article.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:.85}} onError={e=>{e.target.style.display="none";}}/>
-        <div style={{position:"absolute",inset:0,background:`linear-gradient(to top, #111827 0%, transparent 55%)`}}/>
+        <div style={{position:"absolute",inset:0,background:`linear-gradient(to top, var(--bg-card) 0%, transparent 55%)`}}/>
         <div style={{position:"absolute",top:12,right:14,background:"rgba(0,0,0,.6)",backdropFilter:"blur(8px)",borderRadius:10,padding:"4px 10px",display:"flex",alignItems:"center",gap:5,border:`1px solid ${col.border}`}}>
           <span style={{fontSize:14}}>{article.flag}</span><span style={{color:col.accent,fontSize:11,fontWeight:700}}>{article.country}</span>
         </div>
@@ -533,14 +603,20 @@ function AnalysisCard({article,onClick}){
       </div>
       <div style={{padding:"14px 16px 16px"}}>
         <h3 style={{color:"var(--txt-p)",fontSize:15,fontWeight:800,margin:"0 0 8px",lineHeight:1.5}}>{article.title}</h3>
-        <p style={{color:"var(--txt-d)",fontSize:12.5,lineHeight:1.65,margin:"0 0 12px",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{article.body.substring(0,130)}...</p>
+        <p style={{color:"var(--txt-d)",fontSize:12.5,lineHeight:1.65,margin:"0 0 10px",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{(article.body||article.summary||"").substring(0,130)}...</p>
+        {/* Tags */}
+        {article.tags&&article.tags.length>0&&(
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+            {article.tags.map(t=><span key={t} style={{background:col.bg,color:col.accent,fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:20,border:`1px solid ${col.border}`}}>#{t}</span>)}
+          </div>
+        )}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{display:"flex",alignItems:"center",gap:7}}>
             <div style={{width:28,height:28,background:`linear-gradient(135deg,${col.accent}33,${col.accent}11)`,border:`1px solid ${col.border}`,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>✍️</div>
-            <div><div style={{color:"#E2E8F0",fontSize:11.5,fontWeight:700}}>{article.author}</div><div style={{color:"var(--txt-x)",fontSize:10}}>{date}</div></div>
-          </div>
-          <div style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"flex-end"}}>
-            {article.tags.slice(0,2).map(t=><span key={t} style={{background:col.bg,color:col.accent,fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:20,border:`1px solid ${col.border}`}}>#{t}</span>)}
+            <div>
+              <div style={{color:"var(--txt-p)",fontSize:11.5,fontWeight:700}}>{article.author||article.source||"—"}</div>
+              <div style={{color:"var(--txt-x)",fontSize:10}}>{date} · {article.readTime||""}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -576,7 +652,7 @@ function HomeScreen({news,loading,onRefresh,lastUpdate,savedIds,onSave,onOpen,ac
         </div>
       </div>
       {urgentCount>0&&(
-        <div style={{margin:"10px 20px 0",background:"var(--urgent-bg)",border:"1px solid rgba(220,38,38,.3)",borderRadius:12,padding:"7px 13px",display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
+        <div style={{margin:"10px 20px 0",background:"var(--urgent-bg)",border:"1px solid var(--urgent-brd)",borderRadius:12,padding:"7px 13px",display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
           <div style={{width:8,height:8,background:"#DC2626",borderRadius:"50%",animation:"pulse 1s infinite"}}/>
           <span style={{color:"#FCA5A5",fontSize:12,fontWeight:700}}>{urgentCount} خبر عاجل</span>
         </div>
@@ -681,9 +757,9 @@ function NotificationsScreen({news,onBack}){
         </>}
         <div style={{color:"var(--txt-m)",fontSize:11,fontWeight:700,margin:"16px 0 10px",letterSpacing:1}}>🕐 الأحدث</div>
         {news.slice(0,5).map(n=>{const col=gc(n.countryCode);return(
-          <div key={n.id} style={{background:"var(--bg-card)",border:"1px solid #1E293B",borderRadius:14,padding:"12px 14px",marginBottom:10,display:"flex",gap:10}}>
+          <div key={n.id} style={{background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:14,padding:"12px 14px",marginBottom:10,display:"flex",gap:10}}>
             <div style={{width:36,height:36,background:col.bg,border:`1px solid ${col.border}`,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{n.flag}</div>
-            <div style={{flex:1}}><div style={{color:col.accent,fontSize:12,fontWeight:700,marginBottom:3}}>{n.country} · {n.category}</div><div style={{color:"#E2E8F0",fontSize:13,lineHeight:1.4}}>{n.title}</div><div style={{color:"var(--txt-d)",fontSize:11,marginTop:4}}>{n.time}</div></div>
+            <div style={{flex:1}}><div style={{color:col.accent,fontSize:12,fontWeight:700,marginBottom:3}}>{n.country} · {n.category}</div><div style={{color:"var(--txt-p)",fontSize:13,lineHeight:1.4}}>{n.title}</div><div style={{color:"var(--txt-d)",fontSize:11,marginTop:4}}>{n.time}</div></div>
           </div>
         );})}
       </div>
@@ -709,7 +785,7 @@ function SavedScreen({saved,onUnsave,onOpen,onBack}){
             <div style={{color:"var(--txt-x)",fontSize:13,textAlign:"center"}}>اضغط على 🔖 في أي خبر لحفظه هنا.</div>
           </div>
         ):saved.map(n=>{const col=gc(n.countryCode);return(
-          <div key={n.id} style={{background:"var(--bg-card)",border:"1px solid #1E293B",borderRadius:18,padding:"14px 16px",marginBottom:13,position:"relative",overflow:"hidden"}}>
+          <div key={n.id} style={{background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:18,padding:"14px 16px",marginBottom:13,position:"relative",overflow:"hidden"}}>
             <div style={{position:"absolute",right:0,top:0,bottom:0,width:4,background:col.accent,borderRadius:"0 18px 18px 0"}}/>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:7}}>
               <span style={{background:col.bg,color:col.accent,fontSize:11,fontWeight:600,padding:"2px 9px",borderRadius:50,border:`1px solid ${col.border}`}}>{n.flag} {n.country}</span>
@@ -790,7 +866,7 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,s
 
       <div style={{overflowY:"auto",flex:1,padding:"0 20px 20px",display:"flex",flexDirection:"column",gap:14}}>
 
-        {/* ── DARK MODE ── always visible */}
+        {/* ── DARK MODE ── */}
         <div style={{background:V.bg,borderRadius:16,padding:"14px 16px",border:`1px solid ${V.border}`}}>
           <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:14,letterSpacing:1}}>🎨 المظهر</div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -814,7 +890,7 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,s
           </div>
         </div>
 
-        {/* ── ADMIN FIELDS (hidden from normal users) ── */}
+        {/* ── ADMIN FIELDS ── */}
         {isAdmin&&(<>
           <div style={{background:V.bg,borderRadius:16,padding:16,border:`1px solid ${V.border}`}}>
             <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:12,letterSpacing:1}}>📡 Workflow 1 — الأخبار</div>
@@ -842,7 +918,7 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,s
               style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"9px 12px",color:V.h,fontSize:11.5,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr"}}/>
             <div style={{marginTop:8,background:"rgba(239,68,68,.05)",borderRadius:8,padding:"8px 10px",border:"1px solid rgba(239,68,68,.1)"}}>
               <div style={{color:"#F87171",fontSize:10,fontWeight:700,marginBottom:4}}>Payload envoyé :</div>
-              <pre style={{color:V.d,fontSize:9.5,margin:0,direction:"ltr",fontFamily:"monospace",lineHeight:1.6}}>{`{ "id", "type", "approved": true/false,\n  "editedAt", "content": {...} }`}</pre>
+              <pre style={{color:V.d,fontSize:9.5,margin:0,direction:"ltr",fontFamily:"monospace",lineHeight:1.6}}>{`{ "id", "validation": true/false,\n  "validated_at", "content": {...} }`}</pre>
             </div>
           </div>
 
@@ -867,11 +943,9 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,s
           </button>
         </>)}
 
-        {/* ── ABOUT ── always visible */}
+        {/* ── ABOUT ── */}
         <div style={{background:V.bg,borderRadius:16,padding:16,border:`1px solid ${V.border}`}}>
           <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:14,letterSpacing:1}}>ℹ️ عن التطبيق</div>
-
-          {/* App identity */}
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${V.border}`}}>
             <div style={{width:44,height:44,background:"linear-gradient(135deg,#2563EB,#7C3AED)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>📡</div>
             <div>
@@ -879,32 +953,14 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,s
               <div style={{color:"#2563EB",fontSize:11,fontWeight:700,marginTop:2}}>الإصدار 3.2.0 · PWA</div>
             </div>
           </div>
-
-          {/* Description */}
           <div style={{background:dark?"rgba(37,99,235,.06)":"rgba(37,99,235,.04)",borderRadius:12,padding:"12px 14px",marginBottom:14,border:`1px solid ${dark?"rgba(37,99,235,.15)":"rgba(37,99,235,.1)"}`}}>
             <p style={{color:V.d,fontSize:13,lineHeight:1.8,margin:0}}>
-              منصة إخبارية عربية تجمع أهم الأخبار العالمية مُبوَّبةً حسب البلد، مع تحاليل سياسية معمّقة مدعومة بالذكاء الاصطناعي — لتبقى مُطَّلعاً على آخر المستجدات من مصادر موثوقة، وتفهم السياق الحقيقي وراء كل خبر.
+              منصة إخبارية عربية تجمع أهم الأخبار العالمية مُبوَّبةً حسب البلد، مع تحاليل سياسية معمّقة مدعومة بالذكاء الاصطناعي — لتبقى مُطَّلعاً على آخر المستجدات من مصادر موثوقة.
             </p>
           </div>
-
-          {/* Key features */}
-          {[
-            ["📰","أخبار لحظية","مُحدَّثة تلقائياً من n8n"],
-            ["🏛️","تحاليل سياسية","مقالات معمّقة بقلم متخصصين"],
-            ["🤖","Claude AI","تعليق تحليلي فوري على كل خبر"],
-            ["📱","تطبيق PWA","قابل للتثبيت بلا متجر تطبيقات"],
-          ].map(([ic,t,s])=>(
-            <div key={t} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${V.border}`}}>
-              <span style={{fontSize:18,width:24,textAlign:"center"}}>{ic}</span>
-              <div style={{flex:1}}>
-                <div style={{color:V.h,fontSize:13,fontWeight:700}}>{t}</div>
-                <div style={{color:V.d,fontSize:11,marginTop:1}}>{s}</div>
-              </div>
-            </div>
-          ))}
         </div>
 
-        {/* ── ADMIN LOGIN / LOGOUT ── always visible */}
+        {/* ── ADMIN LOGIN / LOGOUT ── */}
         <div style={{background:V.bg,borderRadius:16,padding:16,border:`1px solid ${isAdmin?"rgba(37,99,235,.3)":V.border}`}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:isAdmin||showLogin?14:0}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -925,7 +981,6 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,s
             )}
           </div>
 
-          {/* Login form */}
           {!isAdmin&&showLogin&&(
             <div style={{display:"flex",flexDirection:"column",gap:10,animation:"fadeIn .2s ease"}}>
               <input value={loginId} onChange={e=>{setLoginId(e.target.value);setLoginErr("");}}
@@ -942,15 +997,6 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,s
               </button>
             </div>
           )}
-
-          {/* Admin welcome */}
-          {isAdmin&&(
-            <div style={{background:"rgba(37,99,235,.08)",borderRadius:10,padding:"10px 12px",border:"1px solid rgba(37,99,235,.2)"}}>
-              <div style={{color:"#60A5FA",fontSize:12,lineHeight:1.6}}>
-                🔑 أنت مسجّل كمدير — يمكنك تعديل روابط n8n وتكرار التحديث. التغييرات تُطبَّق فوراً على جميع المستخدمين.
-              </div>
-            </div>
-          )}
         </div>
 
       </div>
@@ -961,14 +1007,12 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,s
 // ══════════════════════════════════════════════
 //  CONTENT REVIEW — admin only (Workflow 3)
 // ══════════════════════════════════════════════
-// MOCK_PENDING — reflète exactement les colonnes Supabase
-// (utilisé uniquement si wh3 n'est pas configuré)
 const MOCK_PENDING = [];
 
 function ReviewScreen({wh3,wh4,dark,onBack}){
   const [items,setItems]=useState([]);
   const [loading,setLoading]=useState(false);
-  const [editing,setEditing]=useState(null); // item being edited
+  const [editingId,setEditingId]=useState(null);
   const [sendingId,setSendingId]=useState(null);
   const [doneIds,setDoneIds]=useState({});
 
@@ -979,564 +1023,465 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
     h:"var(--txt-p)",m:"var(--txt-m)",d:"var(--txt-d)",
   };
 
-  // Normalise n8n output → toujours un array d'items propres
-  const parseN8N=(data)=>parseN8NResponse(data);
-
-  const [lastLoaded,setLastLoaded]=useState(null);
-
   const load=async(silent=false)=>{
-  if(!silent) setLoading(true);
-  try{
-    if(!wh3||wh3.includes("your-app")){
-      setItems(prev=>{
-        const existingIds=new Set(prev.map(i=>i.id));
-        const newItems=MOCK_PENDING.filter(i=>!existingIds.has(i.id));
-        return [...prev, ...newItems];
-      });
-      setLastLoaded(new Date());
-      setLoading(false);
-      return;
+    if(!silent) setLoading(true);
+    try{
+      if(!wh3||wh3.includes("your-app")){
+        setItems(prev=>{
+          const existingIds=new Set(prev.map(i=>i.id));
+          const newItems=MOCK_PENDING.filter(i=>!existingIds.has(i.id));
+          return [...prev, ...newItems];
+        });
+        setLoading(false);
+        return;
+      }
+      const res=await fetch(wh3,{method:"GET",headers:{"Accept":"application/json"}});
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const raw=await res.json();
+      const parsed=parseN8NResponse(raw);
+      if(parsed&&parsed.length>0){
+        const mappedItems = parsed.map(item => ({
+          id: item.id || `pending-${Math.random()}`,
+          type: item.type || "news",
+          country: item.country || "عام",
+          countryCode: item.countryCode || "INTL",
+          flag: item.flag || "🌍",
+          category: item.category || "عام",
+          title: item.title || "",
+          body: item.body || "",
+          summary: item.summary || item.body || "",
+          analysis: item.analysis || item.Analyse || "",
+          source: item.source || item.author || "مصدر غير معروف",
+          author: item.author || "",
+          readTime: item.readTime || "3 دقائق",
+          publishedAt: item.publishedAt || new Date().toISOString(),
+          tags: typeof item.tags === "string" ? JSON.parse(item.tags) : (item.tags || []),
+          image: item.image || "",
+          urgent: item.urgent ?? false,
+          validation: item.validation ?? item["Sent Validation"] ?? item["Validation"] ?? null,
+        }));
+        setItems(prev=>{
+          const doneSet=new Set(Object.keys(doneIds));
+          const existingIds=new Set(prev.map(i=>i.id));
+          const kept=prev.filter(i=>!doneSet.has(i.id));
+          const incoming=mappedItems.filter(i=>!existingIds.has(i.id)&&!doneSet.has(i.id));
+          return [...kept,...incoming];
+        });
+      }
+    }catch(e){
+      console.warn("ReviewScreen load error:",e.message);
+      if(!silent) setItems(prev=>prev.length>0?prev:MOCK_PENDING);
     }
-    const res=await fetch(wh3,{method:"GET",headers:{"Accept":"application/json"}});
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    const raw=await res.json();
-    const parsed=parseN8N(raw);
-    if(parsed&&parsed.length>0){
-      // MAPPER LES CHAMPS DE N8N VERS LE FORMAT ATTENDU
-      const mappedItems = parsed.map(item => ({
-        id: item.id,
-        type: item.type || "news",
-        country: item.country || "",
-        countryCode: item.countryCode || "",
-        flag: item.flag || "",
-        category: item.category || "عام",
-        title: item.title || "",
-        body: item.body || "",
-        summary: item.summary || item.body || "",
-        analysis: item.analysis || item.Analyse || "",  // ← MAP Analyse → analysis
-        source: item.source || item.author || "",
-        author: item.author || "",
-        readTime: item.readTime || "3 دقائق",
-        publishedAt: item.publishedAt || new Date().toISOString(),
-        tags: typeof item.tags === "string" ? JSON.parse(item.tags) : (item.tags || []),
-        image: item.image || "",
-        urgent: item.urgent ?? false,
-        validation: item.validation ?? item["Sent Validation"] ?? item["Validation"] ?? null,
-      }));
-      setItems(prev=>{
-        const doneSet=new Set(Object.keys(doneIds));
-        const existingIds=new Set(prev.map(i=>i.id));
-        const kept=prev.filter(i=>!doneSet.has(i.id));
-        const incoming=mappedItems.filter(i=>!existingIds.has(i.id)&&!doneSet.has(i.id));
-        return [...kept,...incoming];
-      });
-    }
-    setLastLoaded(new Date());
-  }catch(e){
-    console.warn("ReviewScreen load error:",e.message);
-    if(!silent) setItems(prev=>prev.length>0?prev:MOCK_PENDING);
-  }
-  if(!silent) setLoading(false);
-};
-  useEffect(()=>{load();},[]);  // charge une seule fois au montage
+    if(!silent) setLoading(false);
+  };
+
+  useEffect(()=>{load();},[]);
 
   const sendDecision=async(item,approved)=>{
     setSendingId(item.id+(approved?"true":"false"));
+    const payload={
+      id: item.id,
+      validation: approved,
+      validated_at: new Date().toISOString(),
+      content:{
+        title: item.title || null,
+        body: item.body || null,
+        summary: item.summary || null,
+        analysis: item.analysis || null,
+        category: item.category || null,
+        urgent: item.urgent ?? false,
+        source: item.source || null,
+        author: item.author || null,
+        readTime: item.readTime || null,
+        tags: item.tags || [],
+        image: item.image || null,
+        country: item.country || null,
+        countryCode: item.countryCode || null,
+        flag: item.flag || null,
+      }
+    };
 
-    // Payload aligné sur les colonnes Supabase
-    // n8n fera UPDATE WHERE id = payload.id
-      const payload={
-    id: item.id,
-    validation: approved,
-    validated_at: new Date().toISOString(),
-    content:{
-      title: item.title || null,
-      body: item.body || null,
-      summary: item.summary || null,
-      analysis: item.analysis || null,
-      category: item.category || null,
-      urgent: item.urgent ?? false,
-      source: item.source || null,
-      author: item.author || null,
-      readTime: item.readTime || null,
-      tags: item.tags || [],
-      image: item.image || null,
-      country: item.country || null,
-      countryCode: item.countryCode || null,
-      flag: item.flag || null,
-    }
-  };
     try{
       const actionUrl=wh4&&!wh4.includes("your-app")?wh4:null;
       if(actionUrl){
-        const res=await fetch(actionUrl,{
+        await fetch(actionUrl,{
           method:"POST",
-          headers:{"Content-Type":"application/json","Accept":"application/json"},
+          headers:{"Content-Type":"application/json"},
           body:JSON.stringify(payload)
         });
-        if(!res.ok){
-          console.warn("sendDecision HTTP",res.status);
-        } else {
-          const result=await res.json().catch(()=>({}));
-          console.log("✅ n8n reçu:",result);
-          console.log(approved
-            ? `📰 Publié → Supabase UPDATE id=${item.id} validation=true`
-            : `🗑️ Rejeté → Supabase UPDATE id=${item.id} validation=false`
-          );
-        }
-      } else {
-        // Mode test — pas de wh4 configuré
-        console.log("📋 [mode test] payload qui serait envoyé à n8n :");
-        console.log(JSON.stringify(payload, null, 2));
       }
+      setDoneIds(prev=>({...prev,[item.id]:approved?"approved":"rejected"}));
+      setItems(prev=>prev.filter(i=>i.id!==item.id));
     }catch(e){
-      console.warn("sendDecision error:",e.message);
+      console.error("sendDecision error:",e);
+      alert("تعذر إرسال القرار إلى n8n");
+    }finally{
+      setSendingId(null);
     }
-    setDoneIds(prev=>({...prev,[item.id]:approved?"approved":"rejected"}));
-    setSendingId(null);
-    setTimeout(()=>{setItems(prev=>prev.filter(i=>i.id!==item.id));},800);
   };
 
-  const openEdit=(item)=>setEditing(JSON.parse(JSON.stringify(item)));
-  const saveEdit=()=>{
-    setItems(prev=>prev.map(i=>i.id===editing.id?editing:i));
-    setEditing(null);
+  const updateField = (id, field, value) => {
+    setItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
 
-  const col=code=>gc(code||"INTL");
-
-  // ── Review List ──
-  return (
-  <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"visible",position:"relative"}}>
-    
-    {/* ═══ EDITING — position FIXED ═══ */}
-    {editing && (
-      <div style={{position:"fixed",inset:0,zIndex:9999,background:"var(--bg-shell)",display:"flex",flexDirection:"column",animation:"slideUp .25s ease",direction:"rtl"}}>
-        {/* Header fixe */}
-        <div style={{padding:"14px 20px 12px",display:"flex",alignItems:"center",gap:12,flexShrink:0,borderBottom:`1px solid ${V.border}`,background:"var(--bg-shell)"}}>
-          <button onClick={()=>setEditing(null)} style={{background:V.chip,border:"none",cursor:"pointer",color:V.m,fontSize:18,width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>←</button>
-          <div style={{flex:1}}>
-            <div style={{color:V.h,fontWeight:800,fontSize:15}}>تعديل المحتوى</div>
-            <div style={{color:V.d,fontSize:11,marginTop:1}}>{editing.flag} {editing.country} · {editing.type==="news"?"خبر":"مقال"}</div>
-          </div>
-          <button onClick={saveEdit} style={{background:"linear-gradient(135deg,#2563EB,#7C3AED)",border:"none",cursor:"pointer",color:"#fff",fontWeight:700,fontSize:13,padding:"10px 18px",borderRadius:10,fontFamily:"inherit",flexShrink:0}}>
-            حفظ ✓
-          </button>
-        </div>
-
-        {/* Corps scrollable */}
-        <div style={{overflowY:"auto",flex:1,padding:"16px 20px",display:"flex",flexDirection:"column",gap:14}}>
-
-          {/* Champ commun : Titre */}
+  return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{padding:"14px 20px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={onBack} style={{background:V.chip,border:"none",cursor:"pointer",color:V.m,fontSize:18,width:34,height:34,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
           <div>
-            <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6,letterSpacing:.5}}>العنوان</div>
-            <textarea value={editing.title||""} onChange={e=>setEditing({...editing,title:e.target.value})}
-              style={{width:"100%",minHeight:72,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:14,fontWeight:700,lineHeight:1.6,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-          </div>
-
-          {/* NEWS fields */}
-          {editing.type==="news"&&<>
-            <div>
-              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6,letterSpacing:.5}}>الملخص (body)</div>
-              <textarea value={editing.summary||editing.body||""} onChange={e=>setEditing({...editing,summary:e.target.value,body:e.target.value})}
-                style={{width:"100%",minHeight:100,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.75,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-            </div>
-            <div>
-              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6,letterSpacing:.5}}>التحليل (analysis)</div>
-              <textarea value={editing.analysis||""} onChange={e=>setEditing({...editing,analysis:e.target.value})}
-                style={{width:"100%",minHeight:100,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.75,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-            </div>
-            <div style={{display:"flex",gap:10}}>
-              <div style={{flex:1}}>
-                <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>المصدر</div>
-                <input value={editing.source||""} onChange={e=>setEditing({...editing,source:e.target.value})}
-                  style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-              </div>
-              <div style={{flex:1}}>
-                <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>التصنيف</div>
-                <select value={editing.category||""} onChange={e=>setEditing({...editing,category:e.target.value})}
-                  style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}>
-                  {["اقتصاد","سياسة","تقنية","مجتمع","صحة","ثقافة","عام"].map(c=><option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:V.bgInput,borderRadius:10,padding:"12px 14px",border:`1px solid ${V.border}`}}>
-              <span style={{color:V.m,fontSize:13,fontWeight:600}}>⚡ تحديد كخبر عاجل</span>
-              <label style={{position:"relative",display:"inline-block",width:48,height:26,cursor:"pointer",flexShrink:0}}>
-                <input type="checkbox" checked={!!editing.urgent} onChange={e=>setEditing({...editing,urgent:e.target.checked})} style={{opacity:0,width:0,height:0,position:"absolute"}}/>
-                <span style={{position:"absolute",inset:0,background:editing.urgent?"#2563EB":"var(--bg-chip)",borderRadius:13,transition:"background .2s"}}/>
-                <span style={{position:"absolute",top:3,width:20,height:20,background:"#fff",borderRadius:"50%",transition:"right .2s",right:editing.urgent?3:25,boxShadow:"0 1px 4px rgba(0,0,0,.3)"}}/>
-              </label>
-            </div>
-          </>}
-
-          {/* ARTICLE fields */}
-          {editing.type==="article"&&<>
-            <div>
-              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6,letterSpacing:.5}}>نص المقال (body)</div>
-              <textarea value={editing.body||""} onChange={e=>setEditing({...editing,body:e.target.value})}
-                style={{width:"100%",minHeight:200,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.85,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-            </div>
-            <div>
-              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6,letterSpacing:.5}}>التحليل (analysis)</div>
-              <textarea value={editing.analysis||""} onChange={e=>setEditing({...editing,analysis:e.target.value})}
-                style={{width:"100%",minHeight:100,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.75,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-            </div>
-            <div style={{display:"flex",gap:10}}>
-              <div style={{flex:1}}>
-                <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>الكاتب</div>
-                <input value={editing.author||""} onChange={e=>setEditing({...editing,author:e.target.value})}
-                  style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-              </div>
-              <div style={{flex:1}}>
-                <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>وقت القراءة</div>
-                <input value={editing.readTime||""} onChange={e=>setEditing({...editing,readTime:e.target.value})}
-                  style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-              </div>
-            </div>
-            <div>
-              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>رابط الصورة (image)</div>
-              <input value={editing.image||""} onChange={e=>setEditing({...editing,image:e.target.value})}
-                style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:12,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr"}}/>
-              {editing.image&&<img src={editing.image} alt="" style={{width:"100%",height:100,objectFit:"cover",borderRadius:8,marginTop:8}} onError={e=>e.target.style.display="none"}/>}
-            </div>
-            <div>
-              <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:6}}>الوسوم (tags) — مفصولة بفاصلة</div>
-              <input value={(editing.tags||[]).join(",")} onChange={e=>setEditing({...editing,tags:e.target.value.split(",").map(t=>t.trim()).filter(Boolean)})}
-                style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-            </div>
-          </>}
-
-          {/* Boutons d'action dans l'éditeur */}
-          <div style={{display:"flex",gap:10,paddingTop:8,paddingBottom:20}}>
-            <button onClick={()=>setEditing(null)} style={{flex:1,padding:"12px",borderRadius:12,border:`1px solid ${V.border}`,cursor:"pointer",background:V.bgInput,color:V.m,fontWeight:600,fontSize:14,fontFamily:"inherit"}}>
-              إلغاء
-            </button>
-            <button onClick={()=>{saveEdit();}} style={{flex:2,padding:"12px",borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#2563EB,#7C3AED)",color:"#fff",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>
-              ✓ حفظ التعديلات
-            </button>
+            <div style={{color:V.h,fontWeight:800,fontSize:16}}>مراجعة المحتوى</div>
+            <div style={{color:"#F59E0B",fontSize:10.5,fontWeight:700}}>Workflow 3 · n8n</div>
           </div>
         </div>
-      </div>
-      )}
-
-      {/* Header */}
-      <div style={{padding:"14px 20px 12px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-        <div style={{width:32,height:32,background:"linear-gradient(135deg,#F59E0B,#EF4444)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📋</div>
-        <div style={{flex:1}}>
-          <div style={{color:V.h,fontWeight:800,fontSize:17,letterSpacing:-0.5}}>مراجعة المحتوى</div>
-          <div style={{color:V.d,fontSize:10.5}}>
-            {items.length} عنصر
-            {lastLoaded&&` · تم الجلب ${lastLoaded.toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})}`}
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{background:"rgba(245,158,11,.12)",border:"1px solid rgba(245,158,11,.3)",borderRadius:12,padding:"4px 10px"}}>
+            <span style={{color:"#F59E0B",fontSize:11,fontWeight:700}}>{items.length} بانتظار الموافقة</span>
           </div>
+          <button onClick={()=>load()} disabled={loading} style={{background:"none",border:"none",cursor:"pointer",color:"#F59E0B",fontSize:22,opacity:loading?0.5:1}}>⟳</button>
         </div>
-        <button onClick={load} disabled={loading} title="تحديث يدوي" style={{background:"rgba(245,158,11,.12)",border:"1px solid rgba(245,158,11,.3)",borderRadius:10,width:36,height:36,cursor:"pointer",color:"#F59E0B",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",opacity:loading?0.4:1,transition:"opacity .2s"}}>
-          {loading?<span style={{display:"inline-block",width:14,height:14,border:"2px solid #F59E0B",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .8s linear infinite"}}/>:"⟳"}
-        </button>
       </div>
 
-      {/* List */}
-      <div style={{flex:1,overflowY:"auto",padding:"0 20px 20px"}}>
-        {loading&&[1,2].map(i=>(
-          <div key={i} style={{background:V.bg,borderRadius:16,padding:16,marginBottom:12,border:`1px solid ${V.border}`,animation:"pulse 1.4s infinite",animationDelay:`${i*.2}s`}}>
-            <div style={{height:14,background:V.chip,borderRadius:5,width:"60%",marginBottom:10}}/>
-            <div style={{height:12,background:V.chip,borderRadius:5,width:"85%",marginBottom:6}}/>
-            <div style={{height:12,background:V.chip,borderRadius:5,width:"70%"}}/>
+      <div style={{overflowY:"auto",flex:1,padding:"0 20px 20px"}}>
+        {loading?(
+          <div style={{textAlign:"center",padding:"40px 0",color:V.m}}>جاري تحميل المحتوى للمراجعة...</div>
+        ):items.length===0?(
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 20px",gap:12}}>
+            <div style={{fontSize:48}}>🎉</div>
+            <div style={{color:V.h,fontSize:15,fontWeight:700}}>لا يوجد محتوى قيد المراجعة</div>
+            <div style={{color:V.d,fontSize:13,textAlign:"center"}}>تمت مراجعة جميع الأخبار والمقالات الواردة من n8n.</div>
           </div>
-        ))}
-
-        {!loading&&items.length===0&&(
-          <div style={{textAlign:"center",padding:"60px 0"}}>
-            <div style={{fontSize:48,marginBottom:10}}>✅</div>
-            <div style={{color:V.d,fontSize:14,fontWeight:600}}>لا يوجد محتوى بانتظار المراجعة</div>
-            <div style={{color:V.d,fontSize:12,marginTop:6,opacity:.7}}>سيُحدَّث تلقائياً عند وصول محتوى جديد</div>
-          </div>
-        )}
-
-        {!loading&&items.map(item=>{
-          const c=col(item.countryCode);
-          const done=doneIds[item.id];
-          const sending=sendingId;
-          return(
-            <div key={item.id} style={{background:V.bg,borderRadius:16,marginBottom:12,border:`1px solid ${done?"transparent":V.border}`,overflow:"hidden",
-              opacity:done?0.4:1,transition:"opacity .5s",position:"relative"}}>
-              {done&&(
-                <div style={{position:"absolute",inset:0,background:done==="approved"?"rgba(34,197,94,.15)":"rgba(220,38,38,.12)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2,borderRadius:16,border:`2px solid ${done==="approved"?"rgba(34,197,94,.4)":"rgba(220,38,38,.3)"}`}}>
-                  <div style={{fontSize:32}}>{done==="approved"?"✅":"❌"}</div>
-                </div>
-              )}
-              <div style={{padding:"12px 14px 0",display:"flex",alignItems:"center",gap:7,justifyContent:"space-between"}}>
-                <div style={{display:"flex",alignItems:"center",gap:7}}>
-                  <span style={{background:item.type==="news"?"rgba(37,99,235,.12)":"rgba(124,58,237,.12)",color:item.type==="news"?"#60A5FA":"#A78BFA",fontSize:10,fontWeight:700,padding:"2px 9px",borderRadius:20,border:`1px solid ${item.type==="news"?"rgba(37,99,235,.25)":"rgba(124,58,237,.25)"}`}}>
-                    {item.type==="news"?"📰 خبر":"🏛️ مقال"}
-                  </span>
-                  {item.urgent&&<span style={{background:"rgba(220,38,38,.12)",color:"#F87171",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20}}>⚡ عاجل</span>}
-                </div>
-                <span style={{background:c.bg,color:c.accent,fontSize:11,fontWeight:600,padding:"2px 8px",borderRadius:20,border:`1px solid ${c.border}`}}>{item.flag} {item.country}</span>
-              </div>
-              <div style={{padding:"10px 14px"}}>
-                <div style={{color:V.h,fontSize:13.5,fontWeight:700,lineHeight:1.5,marginBottom:6}}>{item.title}</div>
-                <div style={{color:V.d,fontSize:12,lineHeight:1.65,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>
-                  {item.type==="news"?(item.summary||item.body):item.body?.split("\n\n")[0]}
-                </div>
-                {item.type==="news"&&item.analysis&&(
-                  <div style={{marginTop:8,background:dark?"rgba(37,99,235,.06)":"rgba(37,99,235,.04)",borderRadius:8,padding:"8px 10px",border:`1px solid ${dark?"rgba(37,99,235,.15)":"rgba(37,99,235,.08)"}`}}>
-                    <div style={{color:"#60A5FA",fontSize:10,fontWeight:700,marginBottom:3}}>🤖 التحليل</div>
-                    <div style={{color:V.d,fontSize:11.5,lineHeight:1.6,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{item.analysis}</div>
+        ):(
+          items.map(item=>{
+            const isEditing = editingId === item.id;
+            const col = gc(item.countryCode);
+            const Lbl = ({t}) => <div style={{color:V.m,fontSize:10,fontWeight:700,marginBottom:5,letterSpacing:.4}}>{t}</div>;
+            return(
+              <div key={item.id}>
+                {/* ── FULL-SCREEN EDITOR — monté hors de la card pour éviter tout clipping ── */}
+                {isEditing && (
+                  <div style={{position:"fixed",inset:0,zIndex:9000,background:"var(--bg-shell)",display:"flex",flexDirection:"column",direction:"rtl",animation:"slideUp .2s ease"}}>
+                    {/* Header sticky */}
+                    <div style={{padding:"12px 14px",display:"flex",alignItems:"center",gap:9,flexShrink:0,borderBottom:`1px solid ${V.border}`,background:"var(--bg-shell)"}}>
+                      <button onClick={()=>setEditingId(null)} style={{background:V.chip,border:"none",cursor:"pointer",color:V.m,fontSize:17,width:36,height:36,borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>←</button>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{color:V.h,fontWeight:800,fontSize:14}}>تعديل المحتوى</div>
+                        <div style={{color:V.d,fontSize:10.5,marginTop:1}}>{item.flag} {item.country} · {item.type==="article"?"مقال":"خبر"}</div>
+                      </div>
+                      <button onClick={()=>setEditingId(null)} style={{background:"linear-gradient(135deg,#2563EB,#7C3AED)",border:"none",cursor:"pointer",color:"#fff",fontWeight:700,fontSize:12,padding:"8px 16px",borderRadius:9,fontFamily:"inherit",flexShrink:0,whiteSpace:"nowrap"}}>✓ حفظ</button>
+                    </div>
+                    {/* Scrollable fields */}
+                    <div style={{flex:1,overflowY:"auto",overflowX:"hidden",padding:"14px 14px 40px",display:"flex",flexDirection:"column",gap:12}}>
+                      {/* TITRE */}
+                      <div><Lbl t="العنوان"/>
+                        <textarea value={item.title||""} onChange={e=>updateField(item.id,"title",e.target.value)} rows={2}
+                          style={{width:"100%",minHeight:60,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:14,fontWeight:700,lineHeight:1.6,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+                      </div>
+                      {/* SUMMARY / BODY */}
+                      <div><Lbl t={item.type==="article"?"نص المقال (body)":"الملخص (body)"}/>
+                        <textarea value={item.summary||item.body||""} onChange={e=>{updateField(item.id,"summary",e.target.value);updateField(item.id,"body",e.target.value);}}
+                          style={{width:"100%",minHeight:item.type==="article"?150:90,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.75,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+                      </div>
+                      {/* ANALYSE — toujours affiché, même vide */}
+                      <div><Lbl t="التحليل (analysis)"/>
+                        <textarea value={item.analysis||""} onChange={e=>updateField(item.id,"analysis",e.target.value)} placeholder="أدخل التحليل هنا..."
+                          style={{width:"100%",minHeight:90,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:col.accent,fontSize:13,lineHeight:1.75,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+                      </div>
+                      {/* SOURCE + CATEGORIE */}
+                      <div style={{display:"flex",gap:8}}>
+                        <div style={{flex:1}}><Lbl t="المصدر"/>
+                          <input value={item.source||""} onChange={e=>updateField(item.id,"source",e.target.value)}
+                            style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+                        </div>
+                        <div style={{flex:1}}><Lbl t="التصنيف"/>
+                          <select value={item.category||"عام"} onChange={e=>updateField(item.id,"category",e.target.value)}
+                            style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}>
+                            {["اقتصاد","سياسة","تقنية","رياضة","صحة","ثقافة","عام"].map(c=><option key={c}>{c}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      {/* AUTEUR + TEMPS (article) */}
+                      <div style={{display:"flex",gap:8}}>
+                        <div style={{flex:1}}><Lbl t="الكاتب"/>
+                          <input value={item.author||""} onChange={e=>updateField(item.id,"author",e.target.value)}
+                            style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+                        </div>
+                        <div style={{flex:1}}><Lbl t="وقت القراءة"/>
+                          <input value={item.readTime||""} onChange={e=>updateField(item.id,"readTime",e.target.value)} placeholder="5 دقائق"
+                            style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+                        </div>
+                      </div>
+                      {/* IMAGE */}
+                      <div><Lbl t="رابط الصورة"/>
+                        <input value={item.image||""} onChange={e=>updateField(item.id,"image",e.target.value)} placeholder="https://..."
+                          style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:11,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr"}}/>
+                        {item.image&&<img src={item.image} alt="" style={{width:"100%",height:80,objectFit:"cover",borderRadius:8,marginTop:6}} onError={e=>e.target.style.display="none"}/>}
+                      </div>
+                      {/* TAGS */}
+                      <div><Lbl t="الوسوم — مفصولة بفاصلة"/>
+                        <input value={(item.tags||[]).join(",")} onChange={e=>updateField(item.id,"tags",e.target.value.split(",").map(t=>t.trim()).filter(Boolean))} placeholder="سياسة, تحليل"
+                          style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+                      </div>
+                      {/* URGENT */}
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:V.bgInput,borderRadius:9,padding:"11px 13px",border:`1px solid ${V.border}`}}>
+                        <span style={{color:V.m,fontSize:12,fontWeight:600}}>⚡ خبر عاجل</span>
+                        <label style={{position:"relative",display:"inline-block",width:44,height:24,cursor:"pointer",flexShrink:0}}>
+                          <input type="checkbox" checked={!!item.urgent} onChange={e=>updateField(item.id,"urgent",e.target.checked)} style={{opacity:0,width:0,height:0,position:"absolute"}}/>
+                          <span style={{position:"absolute",inset:0,background:item.urgent?"#2563EB":"var(--bg-chip)",borderRadius:12,transition:"background .25s"}}/>
+                          <span style={{position:"absolute",top:3,width:18,height:18,background:"#fff",borderRadius:"50%",transition:"right .25s",right:item.urgent?3:23,boxShadow:"0 1px 3px rgba(0,0,0,.3)"}}/>
+                        </label>
+                      </div>
+                      {/* BOUTONS */}
+                      <div style={{display:"flex",gap:8,paddingTop:4,paddingBottom:10}}>
+                        <button onClick={()=>setEditingId(null)} style={{flex:1,padding:"12px",borderRadius:10,border:`1px solid ${V.border}`,cursor:"pointer",background:V.bgInput,color:V.m,fontWeight:600,fontSize:13,fontFamily:"inherit"}}>إلغاء</button>
+                        <button onClick={()=>setEditingId(null)} style={{flex:2,padding:"12px",borderRadius:10,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#2563EB,#7C3AED)",color:"#fff",fontWeight:700,fontSize:13,fontFamily:"inherit"}}>✓ حفظ التعديلات</button>
+                      </div>
+                    </div>
                   </div>
                 )}
+
+                {/* ── REVIEW CARD (toujours visible sous l'éditeur) ── */}
+                <div style={{background:V.bg,border:`1px solid ${V.border}`,borderRadius:18,padding:16,marginBottom:16}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                      <span style={{background:col.bg,color:col.accent,fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:20,border:`1px solid ${col.border}`}}>{item.flag} {item.country}</span>
+                      <span style={{background:V.chip,color:V.m,fontSize:11,padding:"2px 8px",borderRadius:20}}>{item.type==="article"?"🏛️ مقال":"📰 خبر"}</span>
+                      {item.urgent&&<span style={{background:"#DC2626",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:20}}>⚡ عاجل</span>}
+                    </div>
+                    <button onClick={()=>setEditingId(item.id)} style={{background:"rgba(37,99,235,.12)",border:"1px solid rgba(37,99,235,.3)",color:"#60A5FA",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0}}>
+                      ✏️ تعديل
+                    </button>
+                  </div>
+                  <h3 style={{color:V.h,fontSize:14.5,fontWeight:700,margin:"0 0 6px",lineHeight:1.5}}>{item.title}</h3>
+                  <p style={{color:V.m,fontSize:13,lineHeight:1.6,margin:"0 0 10px"}}>{item.summary||item.body}</p>
+                  {item.analysis&&(
+                    <div style={{background:col.bg,border:`1px solid ${col.border}`,borderRadius:12,padding:"10px 12px",marginBottom:10}}>
+                      <div style={{color:col.accent,fontSize:11,fontWeight:700,marginBottom:4}}>🤖 التحليل:</div>
+                      <div style={{color:V.m,fontSize:12,lineHeight:1.6}}>{item.analysis}</div>
+                    </div>
+                  )}
+                  <div style={{display:"flex",gap:10,marginTop:12}}>
+                    <button onClick={()=>sendDecision(item,true)} disabled={sendingId!==null} style={{flex:1,padding:"10px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#22C55E,#16A34A)",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",opacity:sendingId===item.id+"true"?0.6:1}}>
+                      {sendingId===item.id+"true"?"جاري الإرسال...":"موافقة ونشر ✅"}
+                    </button>
+                    <button onClick={()=>sendDecision(item,false)} disabled={sendingId!==null} style={{flex:1,padding:"10px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#EF4444,#DC2626)",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",opacity:sendingId===item.id+"false"?0.6:1}}>
+                      {sendingId===item.id+"false"?"جاري الإرسال...":"رفض ❌"}
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div style={{padding:"0 14px 14px",display:"flex",gap:8}}>
-                <button onClick={()=>openEdit(item)} style={{flex:1,padding:"9px 0",borderRadius:10,border:`1px solid ${V.border}`,cursor:"pointer",background:V.bgInput,color:V.m,fontWeight:600,fontSize:12,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
-                  ✏️ تعديل
-                </button>
-                <button onClick={()=>sendDecision(item,false)} disabled={!!done||sending===item.id+"false"}
-                  style={{flex:1,padding:"9px 0",borderRadius:10,border:"1px solid rgba(220,38,38,.3)",cursor:"pointer",
-                    background:sending===item.id+"false"?"rgba(220,38,38,.15)":"rgba(220,38,38,.08)",
-                    color:"#F87171",fontWeight:700,fontSize:12,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,transition:"all .2s"}}>
-                  {sending===item.id+"false"?<span style={{display:"inline-block",width:12,height:12,border:"2px solid #F87171",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>:"❌"} رفض
-                </button>
-                <button onClick={()=>sendDecision(item,true)} disabled={!!done||sending===item.id+"true"}
-                  style={{flex:1,padding:"9px 0",borderRadius:10,border:"1px solid rgba(34,197,94,.35)",cursor:"pointer",
-                    background:sending===item.id+"true"?"rgba(34,197,94,.2)":"rgba(34,197,94,.08)",
-                    color:"#22C55E",fontWeight:700,fontSize:13,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,transition:"all .2s"}}>
-                  {sending===item.id+"true"?<span style={{display:"inline-block",width:12,height:12,border:"2px solid #22C55E",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>:"✅"} نشر
-                </button>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );
 }
 
 // ══════════════════════════════════════════════
-//  MAIN APP
+//  MAIN ROOT APP
 // ══════════════════════════════════════════════
 function App(){
-  const [news,setNews]=useState([]);
-  const [analyses,setAnalyses]=useState([]);
-  const [loadN,setLoadN]=useState(true);
-  const [loadA,setLoadA]=useState(true);
-  const [lastN,setLastN]=useState(new Date());
-  const [lastA,setLastA]=useState(new Date());
-  const [tab,setTab]=useState("home");
-  const [activeCountry,setActiveCountry]=useState("الكل");
-  const [savedIds,setSavedIds]=useState(new Set());
-  const [savedNews,setSavedNews]=useState([]);
-  const [drawerNews,setDrawerNews]=useState(null);
-  const [wh1,setWh1]=useState(()=>localStorage.getItem("wh1")||"https://your-app.onrender.com/webhook/news");
-  const [wh2,setWh2]=useState(()=>localStorage.getItem("wh2")||"https://your-app.onrender.com/webhook/analyses");
-  const [wh3,setWh3]=useState(()=>localStorage.getItem("wh3")||"https://your-app.onrender.com/webhook/review");
-  const [wh4,setWh4]=useState(()=>localStorage.getItem("wh4")||"https://your-app.onrender.com/webhook/review-action");
-  const [ri,setRi]=useState(300);
-  const [dark,setDark]=useState(()=>localStorage.getItem("theme")!=="light");
-  const [isAdmin,setIsAdmin]=useState(()=>localStorage.getItem("isAdmin")==="1");
+  const [tab, setTab] = useState("home");
+  const [news, setNews] = useState(MOCK_NEWS);
+  const [analyses, setAnalyses] = useState(MOCK_ANALYSES);
+  const [loadingNews, setLoadingNews] = useState(false);
+  const [loadingAnalyses, setLoadingAnalyses] = useState(false);
 
-  // Apply theme class to <html>
-  useEffect(()=>{
-    document.documentElement.classList.toggle("light",!dark);
-    localStorage.setItem("theme", dark?"dark":"light");
-  },[dark]);
+  const [wh1, setWh1] = useState(() => localStorage.getItem("wh1") || "https://your-n8n-instance.com/webhook/news");
+  const [wh2, setWh2] = useState(() => localStorage.getItem("wh2") || "https://your-n8n-instance.com/webhook/analyses");
+  const [wh3, setWh3] = useState(() => localStorage.getItem("wh3") || "https://your-n8n-instance.com/webhook/review");
+  const [wh4, setWh4] = useState(() => localStorage.getItem("wh4") || "https://your-n8n-instance.com/webhook/review-action");
 
-  // When admin logs out, switch tab away from review
-  useEffect(()=>{
-    if(!isAdmin && tab==="review") setTab("saved");
-  },[isAdmin]);
+  const [ri, setRi] = useState(300);
+  const [dark, setDark] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem("isAdmin") === "1");
 
-  // Detect if running as PWA — full screen no phone shell
-  const pwa=isStandalone();
+  const [savedNews, setSavedNews] = useState(() => new Set());
+  const [savedItems, setSavedItems] = useState([]);
+  const [openedNews, setOpenedNews] = useState(null);
+  const [activeCountryNews, setActiveCountryNews] = useState("الكل");
 
-  // Merge helper — fusionne par id, les nouveaux items s'ajoutent, les existants se mettent à jour
-  const mergeById=(prev,incoming)=>{
-    if(!incoming||!incoming.length) return prev;
-    const map=new Map(prev.map(i=>[String(i.id),i]));
-    incoming.forEach(i=>map.set(String(i.id),i));
-    return Array.from(map.values());
-  };
+  const [lastUpdateNews, setLastUpdateNews] = useState(new Date());
+  const [lastUpdateAnalyses, setLastUpdateAnalyses] = useState(new Date());
 
-  const doLoadNews=async()=>{
-    setLoadN(true);
-    const d=await fetchNews(wh1);
-    setNews(prev=>mergeById(prev,d));
-    setLastN(new Date());
-    setLoadN(false);
-  };
-  const doLoadAn=async()=>{
-    setLoadA(true);
-    const d=await fetchAnalyses(wh2);
-    setAnalyses(prev=>mergeById(prev,d));
-    setLastA(new Date());
-    setLoadA(false);
-  };
-  useEffect(()=>{doLoadNews();doLoadAn();},[wh1,wh2]);
-  useEffect(()=>{
-    const t1=setInterval(doLoadNews,ri*1000);
-    const t2=setInterval(doLoadAn,ri*1000);
-    return()=>{clearInterval(t1);clearInterval(t2);};
-  },[ri,wh1,wh2]);
+  const refreshNews = useCallback(async () => {
+    setLoadingNews(true);
+    const data = await fetchNews(wh1);
+    const sorted = refreshTimes([...data].sort((a,b)=>new Date(b.publishedAt||0)-new Date(a.publishedAt||0)));
+    setNews(sorted);
+    setLastUpdateNews(new Date());
+    setLoadingNews(false);
+  }, [wh1]);
 
-  const toggleSave=(item)=>{
-    setSavedIds(prev=>{
-      const next=new Set(prev);
-      if(next.has(item.id)){next.delete(item.id);setSavedNews(s=>s.filter(n=>n.id!==item.id));}
-      else{next.add(item.id);setSavedNews(s=>[item,...s]);}
+  const refreshAnalyses = useCallback(async () => {
+    setLoadingAnalyses(true);
+    const data = await fetchAnalyses(wh2);
+    const sorted = refreshTimes([...data].sort((a,b)=>new Date(b.publishedAt||0)-new Date(a.publishedAt||0)));
+    setAnalyses(sorted);
+    setLastUpdateAnalyses(new Date());
+    setLoadingAnalyses(false);
+  }, [wh2]);
+
+  useEffect(() => {
+    refreshNews();
+    refreshAnalyses();
+  }, [refreshNews, refreshAnalyses]);
+
+  useEffect(() => {
+    if (dark) {
+      document.documentElement.classList.remove("light");
+    } else {
+      document.documentElement.classList.add("light");
+    }
+  }, [dark]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshNews();
+      refreshAnalyses();
+    }, ri * 1000);
+    return () => clearInterval(interval);
+  }, [ri, refreshNews, refreshAnalyses]);
+
+  const toggleSave = (item) => {
+    setSavedNews(prev => {
+      const next = new Set(prev);
+      if (next.has(item.id)) {
+        next.delete(item.id);
+        setSavedItems(s => s.filter(x => x.id !== item.id));
+      } else {
+        next.add(item.id);
+        setSavedItems(s => [item, ...s]);
+      }
       return next;
     });
   };
 
-  const urgentCount=news.filter(n=>n.urgent).length;
+  const urgentCount = news.filter(n => n.urgent).length;
 
-  // Nav: swap محفوظة ↔ مراجعة based on admin status
-  const navItems=[
-    {id:"home",    icon:"🏠",  label:"الأخبار"},
-    {id:"analyse", icon:"🏛️", label:"تحاليل"},
-    {id:"notif",   icon:"🔔",  label:"تنبيهات"},
-    isAdmin
-      ? {id:"review",  icon:"📋",  label:"مراجعة", adminOnly:true}
-      : {id:"saved",   icon:"📌",  label:"محفوظة"},
-    {id:"settings",icon:"⚙️",  label:"الإعدادات"},
-  ];
+  return (
+    <div style={{
+      width:"100%", maxWidth:480, height:"100vh", maxHeight:900,
+      background:"var(--bg-shell)", border:"1px solid var(--border)",
+      borderRadius:24, display:"flex", flexDirection:"column",
+      position:"relative", overflow:"hidden", boxShadow:"0 20px 50px var(--shadow)"
+    }}>
+      <StatusBar />
 
-  // Shell styles: phone frame on desktop, full screen on mobile/PWA
-  const shellStyle = pwa ? {
-    width:"100%", height:"100%", background:"var(--bg-shell)",
-    display:"flex", flexDirection:"column", direction:"rtl", overflow:"hidden",
-    paddingTop:"env(safe-area-inset-top)", paddingBottom:"env(safe-area-inset-bottom)",
-    transition:"background .25s",
-  } : {
-    width: window.innerWidth <= 480 ? "100%" : 390,
-    height: window.innerWidth <= 480 ? "100%" : 844,
-    background:"var(--bg-shell)",
-    borderRadius: window.innerWidth <= 480 ? 0 : 44,
-    overflow:"hidden", position:"relative",
-    display:"flex", flexDirection:"column", direction:"rtl",
-    boxShadow: window.innerWidth <= 480 ? "none" : `0 40px 80px var(--shadow),inset 0 0 0 1px var(--border)`,
-    transition:"background .25s, box-shadow .25s",
-  };
-
-  return(
-    <div style={shellStyle}>
-      {/* Notch — only on desktop simulator */}
-      {!pwa && window.innerWidth > 480 && (
-        <div style={{position:"absolute",top:0,left:"50%",transform:"translateX(-50%)",width:120,height:34,background:"var(--notch)",borderRadius:"0 0 20px 20px",zIndex:30,transition:"background .25s"}}/>
-      )}
-
-      <StatusBar/>
-
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        {tab==="home"&&<HomeScreen news={news} loading={loadN} onRefresh={doLoadNews} lastUpdate={lastN} savedIds={savedIds} onSave={toggleSave} onOpen={n=>setDrawerNews(n)} activeCountry={activeCountry} setActive={setActiveCountry}/>}
-        {tab==="analyse"&&<AnalysesScreen analyses={analyses} loading={loadA} onRefresh={doLoadAn} lastUpdate={lastA}/>}
-        {tab==="notif"&&<NotificationsScreen news={news} onBack={()=>setTab("home")}/>}
-        {tab==="saved"&&!isAdmin&&<SavedScreen saved={savedNews} onUnsave={id=>toggleSave({id})} onOpen={n=>{setDrawerNews(n);setTab("home");}} onBack={()=>setTab("home")}/>}
-        {tab==="review"&&isAdmin&&<ReviewScreen wh3={wh3} wh4={wh4} dark={dark} onBack={()=>setTab("home")}/>}
-        {tab==="settings"&&<SettingsScreen onBack={()=>setTab("home")} wh1={wh1} setWh1={setWh1} wh2={wh2} setWh2={setWh2} wh3={wh3} setWh3={setWh3} wh4={wh4} setWh4={setWh4} ri={ri} setRi={setRi} dark={dark} setDark={setDark} isAdmin={isAdmin} setIsAdmin={setIsAdmin}/>}
+      <div style={{flex:1, display:"flex", flexDirection:"column", overflow:"hidden", position:"relative"}}>
+        {tab === "home" && (
+          <HomeScreen
+            news={news} loading={loadingNews} onRefresh={refreshNews}
+            lastUpdate={lastUpdateNews} savedIds={savedNews} onSave={toggleSave}
+            onOpen={setOpenedNews} activeCountry={activeCountryNews} setActive={setActiveCountryNews}
+          />
+        )}
+        {tab === "analyse" && (
+          <AnalysesScreen
+            analyses={analyses} loading={loadingAnalyses} onRefresh={refreshAnalyses}
+            lastUpdate={lastUpdateAnalyses}
+          />
+        )}
+        {tab === "notifications" && (
+          <NotificationsScreen news={news} onBack={() => setTab("home")} />
+        )}
+        {tab === "saved" && (
+          <SavedScreen
+            saved={savedItems}
+            onUnsave={(id) => toggleSave({id})}
+            onOpen={setOpenedNews}
+            onBack={() => setTab("home")}
+          />
+        )}
+        {tab === "settings" && (
+          <SettingsScreen
+            onBack={() => setTab("home")}
+            wh1={wh1} setWh1={setWh1}
+            wh2={wh2} setWh2={setWh2}
+            wh3={wh3} setWh3={setWh3}
+            wh4={wh4} setWh4={setWh4}
+            ri={ri} setRi={setRi}
+            dark={dark} setDark={setDark}
+            isAdmin={isAdmin} setIsAdmin={setIsAdmin}
+          />
+        )}
+        {tab === "review" && isAdmin && (
+          <ReviewScreen wh3={wh3} wh4={wh4} dark={dark} onBack={() => setTab("home")} />
+        )}
       </div>
 
-      {/* Bottom nav */}
-      <div style={{background:"var(--bg-nav)",borderTop:"1px solid var(--border)",padding:`9px 0 max(19px, env(safe-area-inset-bottom))`,display:"flex",justifyContent:"space-around",zIndex:5,flexShrink:0,transition:"background .25s, border-color .25s"}}>
-        {navItems.map(item=>{
-          const isActive=tab===item.id;
-          const badge=item.id==="notif"?urgentCount:item.id==="saved"?savedNews.length:0;
-          const ac=item.id==="analyse"?"#7C3AED":item.id==="review"?"#F59E0B":"#2563EB";
-          return(
-            <button key={item.id} onClick={()=>setTab(item.id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"3px 6px",position:"relative"}}>
-              <div style={{position:"relative"}}>
-                <span style={{fontSize:19}}>{item.icon}</span>
-                {badge>0&&<div style={{position:"absolute",top:-4,right:-6,background:"#DC2626",color:"#fff",fontSize:9,fontWeight:800,minWidth:15,height:15,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",border:"2px solid var(--bg-nav)"}}>{badge}</div>}
-              </div>
-              <span style={{color:isActive?ac:"var(--txt-x)",fontSize:9.5,fontWeight:isActive?700:500}}>{item.label}</span>
-              {isActive&&<div style={{width:4,height:4,background:ac,borderRadius:"50%"}}/>}
-            </button>
-          );
-        })}
-      </div>
+      <NewsDrawer news={openedNews} onClose={() => setOpenedNews(null)} />
 
-      {drawerNews&&<NewsDrawer news={drawerNews} onClose={()=>setDrawerNews(null)}/>}
+      {/* Bottom Navigation */}
+      <div style={{
+        height:64, background:"var(--bg-nav)", borderTop:"1px solid var(--border)",
+        display:"flex", alignItems:"center", justifyContent:"space-around",
+        padding:"0 10px max(10px, env(safe-area-inset-bottom))", flexShrink:0, zIndex:5
+      }}>
+        <button onClick={() => setTab("home")} style={{background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, color:tab==="home"?"#2563EB":"var(--txt-d)", fontFamily:"inherit"}}>
+          <span style={{fontSize:20}}>🏠</span>
+          <span style={{fontSize:10, fontWeight:tab==="home"?700:500}}>الأخبار</span>
+        </button>
+
+        <button onClick={() => setTab("analyse")} style={{background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, color:tab==="analyse"?"#7C3AED":"var(--txt-d)", fontFamily:"inherit"}}>
+          <span style={{fontSize:20}}>🏛️</span>
+          <span style={{fontSize:10, fontWeight:tab==="analyse"?700:500}}>التحاليل</span>
+        </button>
+
+        {isAdmin && (
+          <button onClick={() => setTab("review")} style={{background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, color:tab==="review"?"#F59E0B":"var(--txt-d)", fontFamily:"inherit"}}>
+            <span style={{fontSize:20}}>📋</span>
+            <span style={{fontSize:10, fontWeight:tab==="review"?700:500}}>المراجعة</span>
+          </button>
+        )}
+
+        <button onClick={() => setTab("notifications")} style={{background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, color:tab==="notifications"?"#DC2626":"var(--txt-d)", fontFamily:"inherit", position:"relative"}}>
+          <span style={{fontSize:20}}>🔔</span>
+          <span style={{fontSize:10, fontWeight:tab==="notifications"?700:500}}>التنبيهات</span>
+          {urgentCount > 0 && (
+            <div style={{position:"absolute", top:0, right:12, width:8, height:8, background:"#DC2626", borderRadius:"50%"}} />
+          )}
+        </button>
+
+        <button onClick={() => setTab("saved")} style={{background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, color:tab==="saved"?"#F59E0B":"var(--txt-d)", fontFamily:"inherit"}}>
+          <span style={{fontSize:20}}>🔖</span>
+          <span style={{fontSize:10, fontWeight:tab==="saved"?700:500}}>المحفوظات</span>
+        </button>
+
+        <button onClick={() => setTab("settings")} style={{background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, color:tab==="settings"?"#64748B":"var(--txt-d)", fontFamily:"inherit"}}>
+          <span style={{fontSize:20}}>⚙️</span>
+          <span style={{fontSize:10, fontWeight:tab==="settings"?700:500}}>الإعدادات</span>
+        </button>
+      </div>
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-</script>
+const rootElement = document.getElementById("root");
+ReactDOM.render(<App />, rootElement);
 
-<script>
-// ══════════════════════════════════════════════
-//  SERVICE WORKER — PWA offline support
-// ══════════════════════════════════════════════
-if('serviceWorker' in navigator){
-  const swCode = `
-    const CACHE = 'nabdh-v1';
-    const ASSETS = [self.location.href];
-    self.addEventListener('install', e => {
-      e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
-      self.skipWaiting();
-    });
-    self.addEventListener('activate', e => {
-      e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
-      self.clients.claim();
-    });
-    self.addEventListener('fetch', e => {
-      if(e.request.method !== 'GET') return;
-      e.respondWith(
-        fetch(e.request).catch(() => caches.match(e.request))
-      );
-    });
-  `;
-  const blob = new Blob([swCode], {type:'application/javascript'});
-  const swUrl = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl).catch(()=>{});
-}
-
-// ══════════════════════════════════════════════
-//  PWA INSTALL PROMPT
-// ══════════════════════════════════════════════
-let deferredPrompt = null;
-const banner = document.getElementById('install-banner');
-const installBtn = document.getElementById('install-btn');
-const closeBtn = document.getElementById('install-close');
-
-// Show banner for mobile browsers that support beforeinstallprompt
-window.addEventListener('beforeinstallprompt', e => {
+// PWA Install prompt listener
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  // Only show if not already installed
-  if(!window.matchMedia('(display-mode: standalone)').matches){
-    setTimeout(() => banner.classList.remove('hidden'), 2000);
-  }
+  const banner = document.getElementById('install-banner');
+  if (banner) banner.classList.remove('hidden');
 });
 
-installBtn.addEventListener('click', async () => {
-  if(deferredPrompt){
+document.getElementById('install-btn')?.addEventListener('click', async () => {
+  if (deferredPrompt) {
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     deferredPrompt = null;
-    banner.classList.add('hidden');
+    document.getElementById('install-banner')?.classList.add('hidden');
   }
 });
 
-closeBtn.addEventListener('click', () => {
-  banner.classList.add('hidden');
+document.getElementById('install-close')?.addEventListener('click', () => {
+  document.getElementById('install-banner')?.classList.add('hidden');
 });
-
-// iOS Safari — show manual instructions
-const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
-const isInStandaloneMode = window.navigator.standalone;
-if(isIOS && !isInStandaloneMode){
-  setTimeout(()=>{
-    const iosBanner = document.getElementById('install-banner')
-    const iosBtn = document.getElementById('install-btn');
-    const iosSub = iosBanner.querySelector('.install-sub');
-    iosSub.innerHTML = 'اضغط <strong style="color:#60A5FA">مشاركة</strong> ثم <strong style="color:#60A5FA">أضف إلى الشاشة الرئيسية</strong>';
-    iosBtn.textContent = 'فهمت';
-    iosBtn.addEventListener('click', () => iosBanner.classList.add('hidden'), {once:true});
-    iosBanner.classList.remove('hidden');
-  }, 2500);
-}
-
-// Hide banner when app installed
-window.addEventListener('appinstalled', () => banner.classList.add('hidden'));
 </script>
 </body>
 </html>
