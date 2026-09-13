@@ -1296,10 +1296,10 @@ function App(){
   const [loadingNews, setLoadingNews] = useState(false);
   const [loadingAnalyses, setLoadingAnalyses] = useState(false);
 
-  const [wh1, setWh1] = useState(() => localStorage.getItem("wh1") || "https://bannyz-ia-onrender.com/webhook/news");
-  const [wh2, setWh2] = useState(() => localStorage.getItem("wh2") || "https://bannyz-ia-onrender.com/webhook/analyses");
-  const [wh3, setWh3] = useState(() => localStorage.getItem("wh3") || "https://bannyz-ia-onrender.com/webhook/review");
-  const [wh4, setWh4] = useState(() => localStorage.getItem("wh4") || "https://bannyz-ia-onrender.com/webhook/review-action");
+  const [wh1, setWh1] = useState(() => localStorage.getItem("wh1") || "https://bannyz-ia.onrender.com/webhook/news");
+  const [wh2, setWh2] = useState(() => localStorage.getItem("wh2") || "https://bannyz-ia.onrender.com/webhook/analyses");
+  const [wh3, setWh3] = useState(() => localStorage.getItem("wh3") || "https://bannyz-ia.onrender.com/webhook/review");
+  const [wh4, setWh4] = useState(() => localStorage.getItem("wh4") || "https://bannyz-ia.onrender.com/webhook/review-action");
 
   const [ri, setRi] = useState(300);
   const [dark, setDark] = useState(true);
