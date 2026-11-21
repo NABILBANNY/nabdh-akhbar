@@ -923,7 +923,7 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,s
               style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:10,padding:"9px 12px",color:V.h,fontSize:11.5,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr"}}/>
             <div style={{marginTop:8,background:"rgba(239,68,68,.05)",borderRadius:8,padding:"8px 10px",border:"1px solid rgba(239,68,68,.1)"}}>
               <div style={{color:"#F87171",fontSize:10,fontWeight:700,marginBottom:4}}>Payload envoyé :</div>
-              <pre style={{color:V.d,fontSize:9.5,margin:0,direction:"ltr",fontFamily:"monospace",lineHeight:1.6}}>{`{ "id", "validation": true/false,\n  "validated_at", "content": {...} }`}</pre>
+              <pre style={{color:V.d,fontSize:9.5,margin:0,direction:"ltr",fontFamily:"monospace",lineHeight:1.6}}>{`{ "id", "type", "validation": true/false,\n  "validated_at", "content": {...} }`}</pre>
             </div>
           </div>
 
@@ -955,7 +955,7 @@ function SettingsScreen({onBack,wh1,setWh1,wh2,setWh2,wh3,setWh3,wh4,setWh4,ri,s
             <div style={{width:44,height:44,background:"linear-gradient(135deg,#2563EB,#7C3AED)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>📡</div>
             <div>
               <div style={{color:V.h,fontWeight:800,fontSize:15}}>نبض الأخبار</div>
-              <div style={{color:"#2563EB",fontSize:11,fontWeight:700,marginTop:2}}>الإصدار 3.2.0 · PWA</div>
+              <div style={{color:"#2563EB",fontSize:11,fontWeight:700,marginTop:2}}>الإصدار 4.1.0 · PWA</div>
             </div>
           </div>
           <div style={{background:dark?"rgba(37,99,235,.06)":"rgba(37,99,235,.04)",borderRadius:12,padding:"12px 14px",marginBottom:14,border:`1px solid ${dark?"rgba(37,99,235,.15)":"rgba(37,99,235,.1)"}`}}>
@@ -1062,7 +1062,7 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
           publishedAt: item.publishedAt || new Date().toISOString(),
           tags: typeof item.tags === "string" ? JSON.parse(item.tags) : (item.tags || []),
           image: item.image || "",
-	  url: item.URL || "",	
+          url: (item.URL || item.url || "").trim(),
           urgent: item.urgent ?? false,
           validation: item.validation ?? item["Sent Validation"] ?? item["Validation"] ?? null,
         }));
@@ -1087,6 +1087,7 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
     setSendingId(item.id+(approved?"true":"false"));
     const payload={
       id: item.id,
+      type: item.type,
       validation: approved,
       validated_at: new Date().toISOString(),
       content:{
@@ -1161,121 +1162,132 @@ function ReviewScreen({wh3,wh4,dark,onBack}){
           items.map(item=>{
             const isEditing = editingId === item.id;
             const col = gc(item.countryCode);
-            const Lbl = ({t}) => <div style={{color:V.m,fontSize:10,fontWeight:700,marginBottom:5,letterSpacing:.4}}>{t}</div>;
             return(
-              <div key={item.id}>
-                {/* ── FULL-SCREEN EDITOR — monté hors de la card pour éviter tout clipping ── */}
-                {isEditing && (
-                  <div style={{position:"fixed",inset:0,zIndex:9000,background:"var(--bg-shell)",display:"flex",flexDirection:"column",direction:"rtl",animation:"slideUp .2s ease"}}>
-                    {/* Header sticky */}
-                    <div style={{padding:"12px 14px",display:"flex",alignItems:"center",gap:9,flexShrink:0,borderBottom:`1px solid ${V.border}`,background:"var(--bg-shell)"}}>
-                      <button onClick={()=>setEditingId(null)} style={{background:V.chip,border:"none",cursor:"pointer",color:V.m,fontSize:17,width:36,height:36,borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>←</button>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{color:V.h,fontWeight:800,fontSize:14}}>تعديل المحتوى</div>
-                        <div style={{color:V.d,fontSize:10.5,marginTop:1}}>{item.flag} {item.country} · {item.type==="article"?"مقال":"خبر"}</div>
-                      </div>
-                      <button onClick={()=>setEditingId(null)} style={{background:"linear-gradient(135deg,#2563EB,#7C3AED)",border:"none",cursor:"pointer",color:"#fff",fontWeight:700,fontSize:12,padding:"8px 16px",borderRadius:9,fontFamily:"inherit",flexShrink:0,whiteSpace:"nowrap"}}>✓ حفظ</button>
+              <div key={item.id} style={{background:V.bg,border:`1px solid ${V.border}`,borderRadius:18,padding:16,marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    <span style={{background:col.bg,color:col.accent,fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:20,border:`1px solid ${col.border}`}}>{item.flag} {item.country}</span>
+                    <span style={{background:V.chip,color:V.m,fontSize:11,padding:"2px 8px",borderRadius:20}}>{item.type === "article" ? "🏛️ مقال تحليلي" : "📰 خبر"}</span>
+                    {item.urgent && <span style={{background:"#DC2626",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:20}}>⚡ عاجل</span>}
+                  </div>
+                  <button onClick={()=>setEditingId(isEditing ? null : item.id)} style={{background:"rgba(37,99,235,.12)",border:"1px solid rgba(37,99,235,.3)",color:"#60A5FA",borderRadius:8,padding:"4px 10px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                    {isEditing ? "حفظ التعديلات ✏️" : "تعديل النص ✏️"}
+                  </button>
+                </div>
+
+                {isEditing ? (
+                  <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:12,maxHeight:"380px",overflowY:"auto",paddingRight:4,paddingLeft:4}}>
+                    <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:2}}>
+                      <button onClick={()=>updateField(item.id,"type",item.type==="article"?"news":"article")}
+                        style={{background:item.type==="article"?"rgba(124,58,237,.2)":V.chip,border:`1px solid ${item.type==="article"?"#7C3AED":V.border2}`,color:item.type==="article"?"#A78BFA":V.m,borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                        {item.type === "article" ? "🏛️ مقال تحليلي" : "📰 خبر"}
+                      </button>
+                      <button onClick={()=>updateField(item.id,"urgent",!item.urgent)}
+                        style={{background:item.urgent?"#DC2626":V.chip,border:`1px solid ${item.urgent?"#DC2626":V.border2}`,color:item.urgent?"#fff":V.m,borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                        {item.urgent ? "⚡ عاجل (مُفعّل)" : "⚡ غير عاجل"}
+                      </button>
                     </div>
-                    {/* Scrollable fields */}
-                    <div style={{flex:1,overflowY:"auto",overflowX:"hidden",padding:"14px 14px 40px",display:"flex",flexDirection:"column",gap:12}}>
-                      {/* TITRE */}
-                      <div><Lbl t="العنوان"/>
-                        <textarea value={item.title||""} onChange={e=>updateField(item.id,"title",e.target.value)} rows={2}
-                          style={{width:"100%",minHeight:60,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:14,fontWeight:700,lineHeight:1.6,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+
+                    <div>
+                      <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:4}}>العنوان</div>
+                      <input value={item.title||""} onChange={e => updateField(item.id, "title", e.target.value)} placeholder="العنوان" style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:8,padding:"8px 10px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}} />
+                    </div>
+
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                      <div>
+                        <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:4}}>القسم</div>
+                        <input value={item.category||""} onChange={e => updateField(item.id, "category", e.target.value)} placeholder="مثال: اقتصاد" style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:8,padding:"8px 10px",color:V.h,fontSize:12,fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}} />
                       </div>
-                      {/* SUMMARY / BODY */}
-                      <div><Lbl t={item.type==="article"?"نص المقال (body)":"الملخص (body)"}/>
-                        <textarea value={item.summary||item.body||""} onChange={e=>{updateField(item.id,"summary",e.target.value);updateField(item.id,"body",e.target.value);}}
-                          style={{width:"100%",minHeight:item.type==="article"?150:90,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:13,lineHeight:1.75,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-                      </div>
-                      {/* ANALYSE — toujours affiché, même vide */}
-                      <div><Lbl t="التحليل (analysis)"/>
-                        <textarea value={item.analysis||""} onChange={e=>updateField(item.id,"analysis",e.target.value)} placeholder="أدخل التحليل هنا..."
-                          style={{width:"100%",minHeight:90,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:col.accent,fontSize:13,lineHeight:1.75,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-                      </div>
-                      {/* SOURCE + CATEGORIE */}
-                      <div style={{display:"flex",gap:8}}>
-                        <div style={{flex:1}}><Lbl t="المصدر"/>
-                          <input value={item.source||""} onChange={e=>updateField(item.id,"source",e.target.value)}
-                            style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-                        </div>
-                        <div style={{flex:1}}><Lbl t="التصنيف"/>
-                          <select value={item.category||"عام"} onChange={e=>updateField(item.id,"category",e.target.value)}
-                            style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}>
-                            {["اقتصاد","سياسة","تقنية","رياضة","مجتمع","ثقافة","عام"].map(c=><option key={c}>{c}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      {/* AUTEUR + TEMPS (article) */}
-                      <div style={{display:"flex",gap:8}}>
-                        <div style={{flex:1}}><Lbl t="الكاتب"/>
-                          <input value={item.author||""} onChange={e=>updateField(item.id,"author",e.target.value)}
-                            style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-                        </div>
-                        <div style={{flex:1}}><Lbl t="وقت القراءة"/>
-                          <input value={item.readTime||""} onChange={e=>updateField(item.id,"readTime",e.target.value)} placeholder="5 دقائق"
-                            style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-                        </div>
-                      </div>
-                      {/* URL SOURCE */}
-                      <div><Lbl t="رابط الخبر / المصدر"/>
-                        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                          <input value={item.url||""} onChange={e=>updateField(item.id,"url",e.target.value)} placeholder="https://..."
-                            style={{flex:1,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:11,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr"}}/>
-                          {item.url&&<a href={item.url} target="_blank" rel="noopener noreferrer" style={{color:"#60A5FA",fontSize:12,fontWeight:700,textDecoration:"none",whiteSpace:"nowrap",flexShrink:0}}>🔗 فتح</a>}
-                        </div>
-                      </div>
-                      {/* TAGS */}
-                      <div><Lbl t="الوسوم — مفصولة بفاصلة"/>
-                        <input value={(item.tags||[]).join(",")} onChange={e=>updateField(item.id,"tags",e.target.value.split(",").map(t=>t.trim()).filter(Boolean))} placeholder="سياسة, تحليل"
-                          style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:9,padding:"10px 12px",color:V.h,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-                      </div>
-                      {/* URGENT */}
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:V.bgInput,borderRadius:9,padding:"11px 13px",border:`1px solid ${V.border}`}}>
-                        <span style={{color:V.m,fontSize:12,fontWeight:600}}>⚡ خبر عاجل</span>
-                        <label style={{position:"relative",display:"inline-block",width:44,height:24,cursor:"pointer",flexShrink:0}}>
-                          <input type="checkbox" checked={!!item.urgent} onChange={e=>updateField(item.id,"urgent",e.target.checked)} style={{opacity:0,width:0,height:0,position:"absolute"}}/>
-                          <span style={{position:"absolute",inset:0,background:item.urgent?"#2563EB":"var(--bg-chip)",borderRadius:12,transition:"background .25s"}}/>
-                          <span style={{position:"absolute",top:3,width:18,height:18,background:"#fff",borderRadius:"50%",transition:"right .25s",right:item.urgent?3:23,boxShadow:"0 1px 3px rgba(0,0,0,.3)"}}/>
-                        </label>
-                      </div>
-                      {/* BOUTONS */}
-                      <div style={{display:"flex",gap:8,paddingTop:4,paddingBottom:10}}>
-                        <button onClick={()=>setEditingId(null)} style={{flex:1,padding:"12px",borderRadius:10,border:`1px solid ${V.border}`,cursor:"pointer",background:V.bgInput,color:V.m,fontWeight:600,fontSize:13,fontFamily:"inherit"}}>إلغاء</button>
-                        <button onClick={()=>setEditingId(null)} style={{flex:2,padding:"12px",borderRadius:10,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#2563EB,#7C3AED)",color:"#fff",fontWeight:700,fontSize:13,fontFamily:"inherit"}}>✓ حفظ التعديلات</button>
+                      <div>
+                        <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:4}}>وقت القراءة</div>
+                        <input value={item.readTime||""} onChange={e => updateField(item.id, "readTime", e.target.value)} placeholder="مثال: 5 دقائق" style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:8,padding:"8px 10px",color:V.h,fontSize:12,fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}} />
                       </div>
                     </div>
+
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                      <div>
+                        <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:4}}>المصدر</div>
+                        <input value={item.source||""} onChange={e => updateField(item.id, "source", e.target.value)} placeholder="مثال: الجزيرة" style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:8,padding:"8px 10px",color:V.h,fontSize:12,fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}} />
+                      </div>
+                      <div>
+                        <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:4}}>الكاتب / المحلل</div>
+                        <input value={item.author||""} onChange={e => updateField(item.id, "author", e.target.value)} placeholder="اسم الكاتب" style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:8,padding:"8px 10px",color:V.h,fontSize:12,fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:4}}>رابط الخبر / المصدر</div>
+                      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                        <input value={item.url||""} onChange={e => updateField(item.id, "url", e.target.value)} placeholder="https://..." style={{flex:1,minWidth:0,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:8,padding:"8px 10px",color:V.h,fontSize:12,fontFamily:"monospace",outline:"none",boxSizing:"border-box",direction:"ltr"}} />
+                        {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" style={{color:"#60A5FA",fontSize:12,fontWeight:700,textDecoration:"none",whiteSpace:"nowrap",flexShrink:0}}>🔗 فتح</a>}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:4}}>الوسوم</div>
+                      <input value={Array.isArray(item.tags)?item.tags.join(", "):item.tags||""} onChange={e => updateField(item.id, "tags", e.target.value.split(",").map(t=>t.trim()).filter(Boolean))} placeholder="سياسة, اقتصاد" style={{width:"100%",background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:8,padding:"8px 10px",color:V.h,fontSize:12,fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl"}} />
+                    </div>
+
+                    <div>
+                      <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:4}}>المحتوى الكامل / النص الأصلي</div>
+                      <textarea value={item.body||""} onChange={e => updateField(item.id, "body", e.target.value)} placeholder="النص الأصلي" style={{width:"100%",minHeight:80,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:8,padding:"8px 10px",color:V.h,fontSize:12.5,fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl",resize:"none"}} />
+                    </div>
+
+                    <div>
+                      <div style={{color:col.accent,fontSize:11,fontWeight:700,marginBottom:4}}>التحليل السياسي</div>
+                      <textarea value={item.analysis||""} onChange={e => updateField(item.id, "analysis", e.target.value)} placeholder="التحليل السياسي" style={{width:"100%",minHeight:70,background:V.bgInput,border:`1px solid ${V.border2}`,borderRadius:8,padding:"8px 10px",color:col.accent,fontSize:12.5,fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:"rtl",resize:"none"}} />
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                    <div>
+                      <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:4}}>العنوان</div>
+                      <div style={{color:V.h,fontSize:14.5,fontWeight:700,lineHeight:1.5}}>{item.title}</div>
+                    </div>
+
+                    {item.body && (
+                      <div>
+                        <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:4}}>المحتوى الكامل / النص الأصلي</div>
+                        <div style={{maxHeight:120,overflowY:"auto",background:V.bgInput,border:`1px solid ${V.border2}`,padding:"8px 10px",borderRadius:8,color:V.m,fontSize:12.5,lineHeight:1.6}}>
+                          {item.body}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div style={{display:"flex",gap:10,fontSize:11,color:V.d,flexWrap:"wrap"}}>
+                      {item.source && <span>📰 {item.source}</span>}
+                      {item.author && <span>✍️ {item.author}</span>}
+                      {item.readTime && <span>⏱ {item.readTime}</span>}
+                      {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" style={{color:"#60A5FA",fontWeight:600,textDecoration:"none"}}>🔗 رابط الخبر</a>}
+                    </div>
+
+                    {Array.isArray(item.tags) && item.tags.length > 0 && (
+                      <div>
+                        <div style={{color:V.m,fontSize:11,fontWeight:700,marginBottom:4}}>الوسوم</div>
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                          {item.tags.map((t,idx)=><span key={idx} style={{background:col.bg,color:col.accent,fontSize:10,padding:"2px 6px",borderRadius:10,border:`1px solid ${col.border}`}}>#{t}</span>)}
+                        </div>
+                      </div>
+                    )}
+
+                    {item.analysis && (
+                      <div>
+                        <div style={{color:col.accent,fontSize:11,fontWeight:700,marginBottom:4}}>🤖 التحليل السياسي المخزّن</div>
+                        <div style={{maxHeight:120,overflowY:"auto",background:col.bg,border:`1px solid ${col.border}`,borderRadius:8,padding:"8px 10px",color:V.m,fontSize:12.5,lineHeight:1.6}}>
+                          {item.analysis}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* ── REVIEW CARD (toujours visible sous l'éditeur) ── */}
-                <div style={{background:V.bg,border:`1px solid ${V.border}`,borderRadius:18,padding:16,marginBottom:16}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                    <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-                      <span style={{background:col.bg,color:col.accent,fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:20,border:`1px solid ${col.border}`}}>{item.flag} {item.country}</span>
-                      <span style={{background:V.chip,color:V.m,fontSize:11,padding:"2px 8px",borderRadius:20}}>{item.type==="article"?"🏛️ مقال":"📰 خبر"}</span>
-                      {item.urgent&&<span style={{background:"#DC2626",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:20}}>⚡ عاجل</span>}
-                    </div>
-                    <button onClick={()=>setEditingId(item.id)} style={{background:"rgba(37,99,235,.12)",border:"1px solid rgba(37,99,235,.3)",color:"#60A5FA",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0}}>
-                      ✏️ تعديل
-                    </button>
-                  </div>
-                  <h3 style={{color:V.h,fontSize:14.5,fontWeight:700,margin:"0 0 6px",lineHeight:1.5}}>{item.title}</h3>
-                  <p style={{color:V.m,fontSize:13,lineHeight:1.6,margin:"0 0 10px"}}>{item.summary||item.body}</p>
-                  {item.analysis&&(
-                    <div style={{background:col.bg,border:`1px solid ${col.border}`,borderRadius:12,padding:"10px 12px",marginBottom:10}}>
-                      <div style={{color:col.accent,fontSize:11,fontWeight:700,marginBottom:4}}>🤖 التحليل:</div>
-                      <div style={{color:V.m,fontSize:12,lineHeight:1.6}}>{item.analysis}</div>
-                    </div>
-                  )}
-                  <div style={{display:"flex",gap:10,marginTop:12}}>
-                    <button onClick={()=>sendDecision(item,true)} disabled={sendingId!==null} style={{flex:1,padding:"10px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#22C55E,#16A34A)",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",opacity:sendingId===item.id+"true"?0.6:1}}>
-                      {sendingId===item.id+"true"?"جاري الإرسال...":"موافقة ونشر ✅"}
-                    </button>
-                    <button onClick={()=>sendDecision(item,false)} disabled={sendingId!==null} style={{flex:1,padding:"10px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#EF4444,#DC2626)",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",opacity:sendingId===item.id+"false"?0.6:1}}>
-                      {sendingId===item.id+"false"?"جاري الإرسال...":"رفض ❌"}
-                    </button>
-                  </div>
+                <div style={{display:"flex",gap:10,marginTop:12}}>
+                  <button onClick={() => sendDecision(item, true)} disabled={sendingId !== null} style={{flex:1,padding:"10px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#22C55E,#16A34A)",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",opacity:sendingId === item.id + "true" ? 0.6 : 1}}>
+                    {sendingId === item.id + "true" ? "جاري الإرسال..." : "موافقة ونشر ✅"}
+                  </button>
+                  <button onClick={() => sendDecision(item, false)} disabled={sendingId !== null} style={{flex:1,padding:"10px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#EF4444,#DC2626)",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",opacity:sendingId === item.id + "false" ? 0.6 : 1}}>
+                    {sendingId === item.id + "false" ? "جاري الإرسال..." : "رفض ❌"}
+                  </button>
                 </div>
               </div>
             );
